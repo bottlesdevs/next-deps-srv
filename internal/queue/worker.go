@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -218,9 +219,13 @@ func notifyBuildResult(ctx context.Context, job models.BuildJob, dep models.Depe
 		all = append(all, submitter.Email)
 	}
 	if job.Status == "done" {
-		_ = mailer.BuildDone(dep, job, all)
+		if err := mailer.BuildDone(dep, job, all); err != nil {
+			log.Printf("mail: %v", err)
+		}
 	} else {
-		_ = mailer.BuildFailed(dep, job, all)
+		if err := mailer.BuildFailed(dep, job, all); err != nil {
+			log.Printf("mail: %v", err)
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -74,7 +75,9 @@ func (srv *Server) register(w http.ResponseWriter, r *http.Request) {
 			for _, a := range admins {
 				emails = append(emails, a.Email)
 			}
-			_ = srv.mailer.UserRegistered(u, emails)
+			if err := srv.mailer.UserRegistered(u, emails); err != nil {
+				log.Printf("mail: %v", err)
+			}
 		}()
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"token": token})

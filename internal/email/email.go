@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"html/template"
+	"log"
 	"net/smtp"
 	"strings"
 
@@ -65,7 +66,9 @@ func (m *Mailer) send(to []string, subject, body string) error {
 func render(tmpl string, data any) string {
 	t := template.Must(template.New("").Parse(tmpl))
 	var buf bytes.Buffer
-	_ = t.Execute(&buf, data)
+	if err := t.Execute(&buf, data); err != nil {
+		log.Printf("mail: render: %v", err)
+	}
 	return buf.String()
 }
 

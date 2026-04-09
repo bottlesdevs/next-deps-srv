@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
@@ -61,7 +62,9 @@ func (srv *Server) submitDep(w http.ResponseWriter, r *http.Request) {
 			for _, m := range mods {
 				emails = append(emails, m.Email)
 			}
-			_ = srv.mailer.DepSubmitted(dep, emails)
+			if err := srv.mailer.DepSubmitted(dep, emails); err != nil {
+				log.Printf("mail: %v", err)
+			}
 		}
 	}()
 	logAudit(r.Context(), srv.store, claims.UserID, claims.Username, "submit_dep", dep.ID, dep.Name, ipFrom(r))
@@ -105,7 +108,9 @@ func (srv *Server) approveDep(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			submitter, err := srv.store.GetUser(context.Background(), d.SubmittedBy)
 			if err == nil {
-				_ = srv.mailer.DepApproved(d, submitter.Email)
+				if err := srv.mailer.DepApproved(d, submitter.Email); err != nil {
+					log.Printf("mail: %v", err)
+				}
 			}
 		}()
 	}
@@ -139,7 +144,9 @@ func (srv *Server) rejectDep(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			submitter, err := srv.store.GetUser(context.Background(), d.SubmittedBy)
 			if err == nil {
-				_ = srv.mailer.DepRejected(d, submitter.Email, reason)
+				if err := srv.mailer.DepRejected(d, submitter.Email, reason); err != nil {
+					log.Printf("mail: %v", err)
+				}
 			}
 		}()
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -105,7 +106,9 @@ func (srv *Server) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 	if srv.mailer != nil && body.Roles != nil && rolesChanged(oldRoles, user.Roles) {
 		u := user
 		go func() {
-			_ = srv.mailer.RoleChanged(u, u.Roles)
+			if err := srv.mailer.RoleChanged(u, u.Roles); err != nil {
+				log.Printf("mail: %v", err)
+			}
 		}()
 	}
 	writeJSON(w, http.StatusOK, safeUser(user))
