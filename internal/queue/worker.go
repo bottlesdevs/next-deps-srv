@@ -31,7 +31,7 @@ func runJob(ctx context.Context, job models.BuildJob, dep models.Dependency, s *
 		job.Error = err.Error()
 		job.FinishedAt = time.Now()
 		_ = s.UpdateJob(ctx, job)
-		_ = s.UpdateDep(ctx, func() models.Dependency { dep.Status = "built"; return dep }())
+		_ = s.UpdateDep(ctx, func() models.Dependency { dep.Status = "approved"; return dep }())
 		notifyBuildResult(ctx, job, dep, s, mailer)
 	}
 
