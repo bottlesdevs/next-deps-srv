@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -55,7 +56,7 @@ func (srv *Server) submitDep(w http.ResponseWriter, r *http.Request) {
 	// notify mods
 	go func() {
 		if srv.mailer != nil {
-			mods, _ := srv.store.AdminAndModUsers(r.Context())
+			mods, _ := srv.store.AdminAndModUsers(context.Background())
 			var emails []string
 			for _, m := range mods {
 				emails = append(emails, m.Email)
@@ -99,6 +100,15 @@ func (srv *Server) approveDep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logAudit(r.Context(), srv.store, claims.UserID, claims.Username, "approve_dep", dep.ID, dep.Name, ipFrom(r))
+	if srv.mailer != nil {
+		d := dep
+		go func() {
+			submitter, err := srv.store.GetUser(context.Background(), d.SubmittedBy)
+			if err == nil {
+				_ = srv.mailer.DepApproved(d, submitter.Email)
+			}
+		}()
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"dep": dep, "job": job})
 }
 
@@ -123,6 +133,16 @@ func (srv *Server) rejectDep(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logAudit(r.Context(), srv.store, claims.UserID, claims.Username, "reject_dep", dep.ID, dep.Name, ipFrom(r))
+	if srv.mailer != nil {
+		d := dep
+		reason := body.Reason
+		go func() {
+			submitter, err := srv.store.GetUser(context.Background(), d.SubmittedBy)
+			if err == nil {
+				_ = srv.mailer.DepRejected(d, submitter.Email, reason)
+			}
+		}()
+	}
 	writeJSON(w, http.StatusOK, dep)
 }
 
