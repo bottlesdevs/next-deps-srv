@@ -2,6 +2,7 @@ package api
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,6 +86,7 @@ func (srv *Server) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
 		return
 	}
+	oldRoles := user.Roles
 	if body.Roles != nil {
 		user.Roles = body.Roles
 	}
@@ -100,6 +102,12 @@ func (srv *Server) adminUpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logAudit(r.Context(), srv.store, claims.UserID, claims.Username, "admin_update_user", user.ID, user.Username, ipFrom(r))
+	if srv.mailer != nil && body.Roles != nil && rolesChanged(oldRoles, user.Roles) {
+		u := user
+		go func() {
+			_ = srv.mailer.RoleChanged(u, u.Roles)
+		}()
+	}
 	writeJSON(w, http.StatusOK, safeUser(user))
 }
 
@@ -337,4 +345,20 @@ func unzipRestore(src, dest string) error {
 		}
 	}
 	return nil
+}
+
+func rolesChanged(a, b []string) bool {
+	if len(a) != len(b) {
+		return true
+	}
+	set := make(map[string]struct{}, len(a))
+	for _, r := range a {
+		set[r] = struct{}{}
+	}
+	for _, r := range b {
+		if _, ok := set[r]; !ok {
+			return true
+		}
+	}
+	return false
 }

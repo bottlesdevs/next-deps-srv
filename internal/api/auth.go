@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -65,6 +66,17 @@ func (srv *Server) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token, _ := auth.IssueToken(user, srv.secret)
+	if srv.mailer != nil {
+		u := user
+		go func() {
+			admins, _ := srv.store.AdminAndModUsers(context.Background())
+			var emails []string
+			for _, a := range admins {
+				emails = append(emails, a.Email)
+			}
+			_ = srv.mailer.UserRegistered(u, emails)
+		}()
+	}
 	writeJSON(w, http.StatusCreated, map[string]string{"token": token})
 }
 

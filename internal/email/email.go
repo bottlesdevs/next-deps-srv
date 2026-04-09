@@ -111,11 +111,11 @@ func (m *Mailer) UserRegistered(user models.User, adminEmails []string) error {
 	return m.send(adminEmails, "[next-deps-srv] New user registered: "+user.Username, body)
 }
 
-func (m *Mailer) RoleChanged(user models.User, newRole string) error {
+func (m *Mailer) RoleChanged(user models.User, newRoles []string) error {
 	type d struct {
 		models.User
-		NewRole string
+		NewRoles string
 	}
-	body := render(`<p>Your role has been changed to <b>{{.NewRole}}</b>.</p>`, d{user, newRole})
-	return m.send([]string{user.Email}, "[next-deps-srv] Role updated", body)
+	body := render(`<p>Your roles have been updated to: <b>{{.NewRoles}}</b>.</p>`, d{user, strings.Join(newRoles, ", ")})
+	return m.send([]string{user.Email}, "[next-deps-srv] Roles updated", body)
 }
