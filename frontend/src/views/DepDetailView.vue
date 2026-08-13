@@ -72,6 +72,10 @@
       <div class="card">
         <div class="card-title">Indexed Files</div>
         <div v-if="loadingFiles" class="empty"><i class="pi pi-spin pi-spinner"/>Loading…</div>
+        <div v-else-if="filesError" class="empty">
+          <i class="pi pi-exclamation-triangle"/>{{ filesError }}
+          <div><button class="retry-btn" @click="loadFiles($route.params.id)">Retry</button></div>
+        </div>
         <div v-else-if="!files.length" class="empty">
           <i class="pi pi-folder-open"/>No indexed files yet
         </div>
@@ -137,6 +141,7 @@ const loading      = ref(true)
 const loadingFiles = ref(false)
 const files        = ref([])
 const fileSearch   = ref('')
+const filesError   = ref('')
 const fileDialog   = ref({ visible: false, name: '', revisions: [] })
 
 function requirementLabel(r) {
@@ -181,11 +186,21 @@ async function viewFile(name) {
 
 async function loadFiles(depId) {
   loadingFiles.value = true
+  filesError.value = ''
   try {
     const { data } = await api.get(`/deps/${depId}/files`)
-    files.value = data.items || data || []
-  } catch {
+    // Only ever hand the list an array: anything else (an HTML error page,
+    // an object) would be iterated as characters or keys by v-for.
+    files.value = Array.isArray(data?.items) ? data.items
+      : Array.isArray(data) ? data
+      : []
+  } catch (e) {
+    // Surface the failure: silently showing an empty list made a rate-limit
+    // rejection look identical to a dependency with no indexed files.
     files.value = []
+    filesError.value = e.response?.status === 429
+      ? 'Rate limited - wait a moment and retry'
+      : e.response?.data?.error || 'Could not load indexed files'
   } finally {
     loadingFiles.value = false
   }
@@ -257,6 +272,12 @@ onMounted(async () => {
 }
 
 /* Files */
+.retry-btn {
+  margin-top: .5rem; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--radius-sm); padding: .3rem .75rem;
+  font-size: .8125rem; cursor: pointer;
+}
+.retry-btn:hover { border-color: var(--primary); color: var(--primary); }
 .files-search-wrap { position: relative; margin-bottom: .75rem; }
 .files-search {
   width: 100%; padding: .4rem .75rem .4rem 2.25rem;

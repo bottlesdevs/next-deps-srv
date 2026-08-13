@@ -57,6 +57,11 @@ func (s *Store) RevisionsByFile(ctx context.Context, fileID string) ([]models.Fi
 		Sort(func(a, b models.FileRevision) bool { return a.RevisionNum < b.RevisionNum }).All()
 }
 
+// RevisionsByDep returns every revision produced by builds of one dependency.
+func (s *Store) RevisionsByDep(ctx context.Context, depID string) ([]models.FileRevision, error) {
+	return s.Revs.GetByIndex(ctx, "dep_id", depID).All()
+}
+
 func (s *Store) CountRevisions(ctx context.Context) int {
 	revs, _ := s.Revs.GetByIndex(ctx, "all", "all").All()
 	return len(revs)

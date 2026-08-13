@@ -44,6 +44,10 @@ func (srv *Server) Handler(rl *middleware.RateLimiter) http.Handler {
 
 	// SPA fallback: serve index.html for non-API, non-asset paths
 	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "no such endpoint"})
+			return
+		}
 		// let the file server try first
 		path := filepath.Join(distDir, filepath.Clean(r.URL.Path))
 		if _, err := os.Stat(path); err == nil {
@@ -75,6 +79,7 @@ func (srv *Server) Handler(rl *middleware.RateLimiter) http.Handler {
 	mux.Handle("GET /api/v1/deps/pending", modMW(http.HandlerFunc(srv.pendingDeps)))
 	mux.Handle("POST /api/v1/deps/{id}/approve", modMW(http.HandlerFunc(srv.approveDep)))
 	mux.Handle("POST /api/v1/deps/{id}/reject", modMW(http.HandlerFunc(srv.rejectDep)))
+	mux.Handle("GET /api/v1/deps/{id}/files", rateMW(http.HandlerFunc(srv.depFiles)))
 
 	// files
 	mux.Handle("GET /api/v1/files/{name}", rateMW(http.HandlerFunc(srv.getFile)))

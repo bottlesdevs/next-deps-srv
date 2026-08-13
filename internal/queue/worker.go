@@ -176,6 +176,7 @@ func indexOneFile(ctx context.Context, srcPath, filename string, job models.Buil
 
 	var fileID string
 	var revNum int
+	var shareStoragePath string
 
 	if !found {
 		newFile, err := s.CreateFile(ctx, models.BucketFile{
@@ -193,16 +194,25 @@ func indexOneFile(ctx context.Context, srcPath, filename string, job models.Buil
 		revNum = len(existingRevs) + 1
 
 		for _, r := range existingRevs {
-			if r.Hash == fileHash {
+			if r.Hash != fileHash {
+				continue
+			}
+			if r.SourceDepID == dep.ID {
 				return "skip – same hash", nil
+			}
+			if shareStoragePath == "" {
+				shareStoragePath = r.StoragePath
 			}
 		}
 	}
 
 	revID := uuid.NewString()
-	storagePath, err := backend.Store(ctx, srcPath, filename, revID)
-	if err != nil {
-		return "", err
+	storagePath := shareStoragePath
+	if storagePath == "" {
+		storagePath, err = backend.Store(ctx, srcPath, filename, revID)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	rev, err := s.CreateRevision(ctx, models.FileRevision{
@@ -233,7 +243,10 @@ func indexOneFile(ctx context.Context, srcPath, filename string, job models.Buil
 	}
 
 	action := "new"
-	if found {
+	switch {
+	case shareStoragePath != "":
+		action = fmt.Sprintf("rev %d – shared content", revNum)
+	case found:
 		action = fmt.Sprintf("rev %d", revNum)
 	}
 	return action, nil
