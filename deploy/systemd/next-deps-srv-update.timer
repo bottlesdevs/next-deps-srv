@@ -1,0 +1,12 @@
+[Unit]
+Description=Check for next-deps-srv releases
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Persistent=true
+Unit=next-deps-srv-update.service
+
+[Install]
+WantedBy=timers.target

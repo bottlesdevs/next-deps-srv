@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  linux-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Test backend
+        run: go test ./...
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build release archive
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          mkdir -p build/package/frontend build/dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o build/package/next-deps-srv ./cmd
+          cp -a frontend/dist build/package/frontend/dist
+          printf '%s\n' "$VERSION" > build/package/VERSION
+          tar -C build/package -czf build/dist/next-deps-srv-linux-amd64.tar.gz .
+          printf '%s\n' "$VERSION" > build/dist/next-deps-srv.version
+          cd build/dist
+          sha256sum next-deps-srv-linux-amd64.tar.gz > next-deps-srv-linux-amd64.tar.gz.sha256
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" build/dist/* --clobber
+          else
+            gh release create "$VERSION" build/dist/* --verify-tag --generate-notes --title "$VERSION"
+          fi

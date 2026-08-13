@@ -1,0 +1,9 @@
+[Unit]
+Description=Update next-deps-srv from the latest GitHub release
+Wants=network-online.target
+After=network-online.target next-deps-srv.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/next-deps-srv-update
+UMask=0027

@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_DIR=${NEXT_DEPS_APP_DIR:-/home/fab/apps/next-deps-srv}
+SERVICE_NAME=${NEXT_DEPS_SERVICE_NAME:-next-deps-srv.service}
+RELEASE_BASE_URL=${NEXT_DEPS_RELEASE_BASE_URL:-https://github.com/bottlesdevs/next-deps-srv/releases}
+HEALTH_URL=${NEXT_DEPS_HEALTH_URL:-http://127.0.0.1:8080/api/v1/catalog/dependencies}
+SERVICE_OWNER=${NEXT_DEPS_SERVICE_OWNER:-fab}
+SERVICE_GROUP=${NEXT_DEPS_SERVICE_GROUP:-fab}
+LOCK_FILE=${NEXT_DEPS_LOCK_FILE:-/run/lock/next-deps-srv-update.lock}
+HEALTH_ATTEMPTS=${NEXT_DEPS_HEALTH_ATTEMPTS:-30}
+HEALTH_DELAY=${NEXT_DEPS_HEALTH_DELAY:-1}
+SYSTEMCTL_BIN=${NEXT_DEPS_SYSTEMCTL_BIN:-systemctl}
+ASSET=next-deps-srv-linux-amd64.tar.gz
+
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  exit 0
+fi
+
+for command in curl flock sha256sum tar install; do
+  command -v "$command" >/dev/null
+done
+test -d "$APP_DIR/data"
+test -x "$APP_DIR/next-deps-srv"
+test -d "$APP_DIR/frontend/dist"
+
+work_dir=$(mktemp -d -t next-deps-srv-update.XXXXXX)
+backup_dir=""
+binary_replaced=0
+dist_moved=0
+dist_installed=0
+staged_dist=""
+
+finish() {
+  status=$?
+  trap - EXIT
+  set +e
+  if [[ $status -ne 0 && $binary_replaced -eq 1 && -n "$backup_dir" ]]; then
+    echo "Update failed, restoring the previous release" >&2
+    install -o "$SERVICE_OWNER" -g "$SERVICE_GROUP" -m 0755 "$backup_dir/next-deps-srv" "$APP_DIR/.next-deps-srv.rollback"
+    mv -f "$APP_DIR/.next-deps-srv.rollback" "$APP_DIR/next-deps-srv"
+    if [[ $dist_moved -eq 1 ]]; then
+      if [[ $dist_installed -eq 1 && -d "$APP_DIR/frontend/dist" ]]; then
+        mv "$APP_DIR/frontend/dist" "$backup_dir/frontend/dist.failed"
+      fi
+      mv "$backup_dir/frontend/dist" "$APP_DIR/frontend/dist"
+    fi
+    "$SYSTEMCTL_BIN" restart "$SERVICE_NAME" || true
+  fi
+  if [[ -n "$staged_dist" && -d "$staged_dist" ]]; then
+    rm -rf -- "$staged_dist"
+  fi
+  rm -rf -- "$work_dir"
+  exit "$status"
+}
+trap finish EXIT
+
+latest_url="$RELEASE_BASE_URL/latest/download"
+curl -fsSL "$latest_url/next-deps-srv.version" -o "$work_dir/remote-version"
+remote_version=$(tr -d '\r\n' < "$work_dir/remote-version")
+if [[ ! $remote_version =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "Invalid release version: $remote_version" >&2
+  exit 1
+fi
+
+installed_version=""
+if [[ -f "$APP_DIR/VERSION" ]]; then
+  installed_version=$(tr -d '\r\n' < "$APP_DIR/VERSION")
+fi
+if [[ $installed_version == "$remote_version" ]]; then
+  echo "next-deps-srv is already at $remote_version"
+  exit 0
+fi
+
+curl -fsSL "$latest_url/$ASSET" -o "$work_dir/$ASSET"
+curl -fsSL "$latest_url/$ASSET.sha256" -o "$work_dir/$ASSET.sha256"
+expected_hash=$(awk 'NR == 1 { print $1 }' "$work_dir/$ASSET.sha256")
+actual_hash=$(sha256sum "$work_dir/$ASSET" | awk '{ print $1 }')
+if [[ ! $expected_hash =~ ^[0-9a-f]{64}$ || $actual_hash != "$expected_hash" ]]; then
+  echo "Release checksum mismatch" >&2
+  exit 1
+fi
+
+while IFS= read -r archive_path; do
+  archive_path=${archive_path#./}
+  if [[ $archive_path == *".."* ]]; then
+    echo "Unsafe archive path: $archive_path" >&2
+    exit 1
+  fi
+  case "$archive_path" in
+    ""|next-deps-srv|VERSION|frontend|frontend/|frontend/dist|frontend/dist/|frontend/dist/*) ;;
+    *)
+      echo "Unexpected archive path: $archive_path" >&2
+      exit 1
+      ;;
+  esac
+done < <(tar -tzf "$work_dir/$ASSET")
+if tar -tvzf "$work_dir/$ASSET" | awk '$1 !~ /^[-d]/ { exit 1 }'; then
+  :
+else
+  echo "Release archive contains a link or special file" >&2
+  exit 1
+fi
+
+mkdir "$work_dir/release"
+tar --no-same-owner --no-same-permissions -xzf "$work_dir/$ASSET" -C "$work_dir/release"
+test -x "$work_dir/release/next-deps-srv"
+test -s "$work_dir/release/frontend/dist/index.html"
+archive_version=$(tr -d '\r\n' < "$work_dir/release/VERSION")
+if [[ $archive_version != "$remote_version" ]]; then
+  echo "Release version does not match its archive" >&2
+  exit 1
+fi
+
+mkdir -p "$APP_DIR/.rollback"
+backup_dir=$(mktemp -d "$APP_DIR/.rollback/$(date -u +%Y%m%dT%H%M%SZ)-${installed_version:-manual}.XXXXXX")
+mkdir "$backup_dir/frontend"
+cp -p "$APP_DIR/next-deps-srv" "$backup_dir/next-deps-srv"
+if [[ -f "$APP_DIR/VERSION" ]]; then
+  cp -p "$APP_DIR/VERSION" "$backup_dir/VERSION"
+fi
+
+install -o "$SERVICE_OWNER" -g "$SERVICE_GROUP" -m 0755 "$work_dir/release/next-deps-srv" "$APP_DIR/.next-deps-srv.new"
+staged_dist="$APP_DIR/frontend/.dist-$remote_version"
+test ! -e "$staged_dist"
+cp -a "$work_dir/release/frontend/dist" "$staged_dist"
+chown -R "$SERVICE_OWNER:$SERVICE_GROUP" "$staged_dist"
+
+mv -f "$APP_DIR/.next-deps-srv.new" "$APP_DIR/next-deps-srv"
+binary_replaced=1
+mv "$APP_DIR/frontend/dist" "$backup_dir/frontend/dist"
+dist_moved=1
+mv "$staged_dist" "$APP_DIR/frontend/dist"
+dist_installed=1
+
+"$SYSTEMCTL_BIN" restart "$SERVICE_NAME"
+healthy=0
+for ((attempt = 1; attempt <= HEALTH_ATTEMPTS; attempt++)); do
+  if curl -fsS "$HEALTH_URL" >/dev/null; then
+    healthy=1
+    break
+  fi
+  sleep "$HEALTH_DELAY"
+done
+if [[ $healthy -ne 1 ]]; then
+  echo "Release failed its health check" >&2
+  exit 1
+fi
+
+printf '%s\n' "$remote_version" > "$APP_DIR/.VERSION.new"
+chown "$SERVICE_OWNER:$SERVICE_GROUP" "$APP_DIR/.VERSION.new"
+chmod 0644 "$APP_DIR/.VERSION.new"
+mv -f "$APP_DIR/.VERSION.new" "$APP_DIR/VERSION"
+echo "Updated next-deps-srv to $remote_version"

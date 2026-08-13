@@ -14,6 +14,7 @@ https://bottles-next-deps.bromb.in/api/v1
 - [Catalog API](catalog-api.md): public endpoints, shared schema, client resolution, and downloads.
 - [Components](components.md): bottle slots, component requirements, and complete payloads.
 - [Dependencies](dependencies.md): non-slot packages, dependency requirements, and complete payloads.
+- [Deployment](deployment.md): release artifacts, systemd installation, updates, and rollback.
 
 ## Core model
 
