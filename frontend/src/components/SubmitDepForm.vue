@@ -66,6 +66,10 @@
           </div>
         </div>
         <div class="field">
+          <label>Component root <span class="hint">optional, e.g. Contents/Resources/wine</span></label>
+          <InputText v-model="a.component_root" placeholder="leave blank if the archive's top-level directory is the component" />
+        </div>
+        <div class="field">
           <label>Steps <span class="hint">optional, JSON array</span></label>
           <Textarea v-model="a.steps" rows="2" placeholder="[]" :class="{ invalid: stepsError(a) }" />
           <small v-if="stepsError(a)" class="err">{{ stepsError(a) }}</small>
@@ -139,6 +143,7 @@ function blankArtifact() {
     url: '', file_name: '',
     checksum: { algorithm: 'sha256', value: '' },
     platform: { os: null, arch: null },
+    component_root: '',
     steps: '',
   }
 }
@@ -184,6 +189,8 @@ function payload() {
       if (a.platform.os && a.platform.arch) {
         art.platform = { os: a.platform.os, arch: a.platform.arch }
       }
+      const componentRoot = (a.component_root || '').trim()
+      if (componentRoot) art.component_root = componentRoot
       const steps = (a.steps || '').trim()
       if (steps) art.steps = JSON.parse(steps)
       return art

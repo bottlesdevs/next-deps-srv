@@ -31,6 +31,7 @@
               <span v-if="a.platform" class="tagline">{{ a.platform.os }}/{{ a.platform.arch }}</span>
               <span v-else class="tagline">any platform</span>
               <code class="sum">{{ a.checksum.algorithm }}:{{ a.checksum.value }}</code>
+              <span v-if="a.component_root" class="tagline">root: {{ a.component_root }}</span>
               <span v-if="a.steps?.length" class="tagline">{{ a.steps.length }} step(s)</span>
             </div>
           </div>

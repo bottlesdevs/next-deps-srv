@@ -146,6 +146,15 @@ func indexFiles(ctx context.Context, dir string, job models.BuildJob, dep models
 		if err != nil || info.IsDir() {
 			return err
 		}
+		// Walk uses Lstat, so a symlink's own FileInfo is never a directory
+		// even when it targets one (e.g. a macOS framework's Versions/Current
+		// symlinks). Indexing opens the file by following the link, which
+		// then fails to read a directory as file content. The per-file index
+		// has no way to represent a link anyway, so skip it rather than fail
+		// the whole build over one entry.
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
 		action, err := indexOneFile(ctx, p, info.Name(), job, dep, art, archiveHash, s, backend)
 		if err != nil {
 			return err

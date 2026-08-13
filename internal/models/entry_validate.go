@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/google/uuid"
@@ -103,6 +104,33 @@ func (a CatalogArtifact) Validate() error {
 	if a.Platform != nil {
 		if err := a.Platform.Validate(); err != nil {
 			return fmt.Errorf("platform: %w", err)
+		}
+	}
+	if a.ComponentRoot != "" {
+		if err := validRelativeSubpath(a.ComponentRoot); err != nil {
+			return fmt.Errorf("component_root: %w", err)
+		}
+	}
+	return nil
+}
+
+// validRelativeSubpath rejects an empty path, an absolute path, and any path
+// containing a `..` component, so it can only ever name a subdirectory of
+// wherever it is resolved against.
+func validRelativeSubpath(p string) error {
+	if strings.TrimSpace(p) == "" {
+		return fmt.Errorf("must not be empty")
+	}
+	if path.IsAbs(p) {
+		return fmt.Errorf("must be relative")
+	}
+	clean := path.Clean(p)
+	if clean == "." {
+		return fmt.Errorf("must not be empty")
+	}
+	for _, part := range strings.Split(clean, "/") {
+		if part == ".." {
+			return fmt.Errorf("must not traverse above its own directory")
 		}
 	}
 	return nil

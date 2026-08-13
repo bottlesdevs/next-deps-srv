@@ -67,6 +67,7 @@ Clients must check `schema_version` before parsing entries. Version `1` is the o
 | `slot` | string | Component role. Present only in the component catalog. |
 | `artifacts` | array | Download candidates and their verification data. |
 | `requirements` | array | Optional references to other catalog entries. |
+| `artifacts[].component_root` | string, optional | Subdirectory of the archive's own top-level directory that is the component itself, for archives that wrap it in unrelated packaging (e.g. a macOS runner's Wine layout nested inside an app bundle). Relative, and never containing `..`. |
 
 The server publishes at most one entry for each `name` and `version` pair in each catalog. If multiple built records share the same pair, the most recently updated record wins. Clients must not use array order as a version preference.
 

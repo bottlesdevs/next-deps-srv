@@ -100,6 +100,12 @@ type CatalogArtifact struct {
 	FileName string   `json:"file_name"`
 	Checksum Checksum `json:"checksum"`
 	Platform *Target  `json:"platform,omitempty"`
+	// ComponentRoot names the subdirectory, relative to the archive's own
+	// top-level directory, that is the component itself. It is for archives
+	// that wrap a component in unrelated packaging, such as a macOS runner's
+	// Wine layout nested inside an app bundle. Consumers extract the archive
+	// and publish this subdirectory in place of the whole extracted tree.
+	ComponentRoot string `json:"component_root,omitempty"`
 	// Steps is an opaque recipe carried through to consumers untouched.
 	Steps []json.RawMessage `json:"steps,omitempty"`
 }

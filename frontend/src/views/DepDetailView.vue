@@ -69,6 +69,10 @@
                 <span class="info-key">{{ a.checksum.algorithm }}</span>
                 <code class="info-val mono">{{ a.checksum.value }}</code>
               </div>
+              <div class="info-row" v-if="a.component_root">
+                <span class="info-key">Component root</span>
+                <code class="info-val mono">{{ a.component_root }}</code>
+              </div>
               <div class="info-row" v-if="a.steps?.length">
                 <span class="info-key">Steps</span>
                 <code class="info-val mono">{{ JSON.stringify(a.steps) }}</code>

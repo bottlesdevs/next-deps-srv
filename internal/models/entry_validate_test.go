@@ -196,3 +196,50 @@ func TestSteps_RoundTripUnchanged(t *testing.T) {
 		t.Errorf("steps were altered in round trip: %s", out)
 	}
 }
+
+// component_root selects a subdirectory of the archive's own top-level
+// directory, so it must stay relative and must not climb out of it.
+func TestCatalogArtifact_ComponentRootValidation(t *testing.T) {
+	entry := func(root string) models.CatalogEntry {
+		e := validEntry()
+		e.Artifacts[0].ComponentRoot = root
+		return e
+	}
+
+	for _, accepted := range []string{"", "Contents/Resources/wine", "wine", "a/b/c"} {
+		if err := entry(accepted).Validate(models.KindDependency); err != nil {
+			t.Errorf("expected %q to be accepted, got %v", accepted, err)
+		}
+	}
+	for _, rejected := range []string{".", "..", "../wine", "Contents/../../wine", "/Applications"} {
+		if err := entry(rejected).Validate(models.KindDependency); err == nil {
+			t.Errorf("expected %q to be rejected", rejected)
+		}
+	}
+}
+
+// component_root must survive a round trip and stay absent from JSON when unset.
+func TestCatalogArtifact_ComponentRootRoundTrip(t *testing.T) {
+	entry := componentEntry()
+	entry.Artifacts[0].ComponentRoot = "Contents/Resources/wine"
+	b, err := json.Marshal(entry.NormalizeForCatalog())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"component_root":"Contents/Resources/wine"`) {
+		t.Errorf("component_root missing from marshaled entry: %s", b)
+	}
+
+	var decoded models.CatalogEntry
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Artifacts[0].ComponentRoot != "Contents/Resources/wine" {
+		t.Errorf("component_root did not round trip: %+v", decoded.Artifacts[0])
+	}
+
+	unset, _ := json.Marshal(validEntry().NormalizeForCatalog())
+	if strings.Contains(string(unset), "component_root") {
+		t.Errorf("component_root should be omitted when unset, got %s", unset)
+	}
+}
