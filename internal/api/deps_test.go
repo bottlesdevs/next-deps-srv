@@ -259,3 +259,83 @@ func TestSubmitDep_ServerAssignsEntryID(t *testing.T) {
 		t.Errorf("entry id is not a uuid: %q", dep.Entry.ID)
 	}
 }
+
+func TestDepFiles_ListsIndexedFiles(t *testing.T) {
+	ts, s := setup(t)
+	ctx := context.Background()
+
+	entry := testEntry("libfoo").CatalogEntry
+	entry.ID = uuid.NewString()
+	dep, err := s.CreateDep(ctx, models.Dependency{
+		ID: entry.ID, Name: "libfoo", Kind: models.KindDependency,
+		Status: "built", SubmittedBy: "user-1", Entry: entry,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	file, err := s.CreateFile(ctx, models.BucketFile{Name: "libfoo.dll", BucketChar: "l"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= 2; i++ {
+		if _, err := s.CreateRevision(ctx, models.FileRevision{
+			ID: uuid.NewString(), FileID: file.ID, RevisionNum: i,
+			Hash: "hash", SourceDepID: dep.ID, SizeBytes: 10,
+			Platform: "windows/x86_64",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A revision from another dependency must not be counted.
+	if _, err := s.CreateRevision(ctx, models.FileRevision{
+		ID: uuid.NewString(), FileID: file.ID, RevisionNum: 3,
+		Hash: "other", SourceDepID: uuid.NewString(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.Get(ts.URL + "/api/v1/deps/" + dep.ID + "/files")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var out struct {
+		Total int `json:"total"`
+		Items []struct {
+			Name          string `json:"name"`
+			RevisionCount int    `json:"revision_count"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Items) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(out.Items))
+	}
+	if out.Items[0].Name != "libfoo.dll" {
+		t.Errorf("expected a file name, got %q", out.Items[0].Name)
+	}
+	if out.Items[0].RevisionCount != 2 {
+		t.Errorf("expected 2 revisions from this dep, got %d", out.Items[0].RevisionCount)
+	}
+}
+
+// An unknown API path must return JSON, not the SPA's index.html.
+func TestUnknownAPIPath_ReturnsJSON404(t *testing.T) {
+	ts, _ := setup(t)
+	resp, err := http.Get(ts.URL + "/api/v1/does-not-exist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "application/json" {
+		t.Errorf("expected application/json, got %q", ct)
+	}
+}

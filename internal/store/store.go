@@ -73,6 +73,7 @@ func Open(dataDir string) (*Store, error) {
 	}
 	s.Revs.AddIndex("file_id", func(r models.FileRevision) string { return r.FileID })
 	s.Revs.AddIndex("job_id", func(r models.FileRevision) string { return r.SourceJobID })
+	s.Revs.AddIndex("dep_id", func(r models.FileRevision) string { return r.SourceDepID })
 	s.Revs.AddIndex("all", func(models.FileRevision) string { return "all" })
 	if err = s.Revs.Engine().Recover(); err != nil {
 		return nil, fmt.Errorf("revisions recover: %w", err)
