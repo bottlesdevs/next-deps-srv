@@ -138,7 +138,7 @@ onMounted(load)
 .filters { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
 .search-wrap { position: relative; }
 .search-icon { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); color: var(--text-faint); font-size: .875rem; pointer-events: none; }
-.search-input { padding-left: 2.25rem !important; width: 260px; }
+.search-input { padding-left: 2.25rem !important; width: 260px; max-width: 100%; }
 .filter-pills { display: flex; gap: .375rem; }
 .pill {
   padding: .3rem .875rem; border-radius: 999px;

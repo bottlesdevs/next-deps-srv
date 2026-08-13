@@ -73,14 +73,14 @@ async function submit() {
   background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
 }
 .register-card {
-  background: #fff; border-radius: 16px; padding: 2.5rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2.5rem;
   width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,.2);
 }
 h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem; }
-.subtitle { color: #64748b; margin-bottom: 1.5rem; }
+.subtitle { color: var(--text-muted); margin-bottom: 1.5rem; }
 .field { margin-bottom: 1.1rem; display: flex; flex-direction: column; gap: .4rem; }
 .w-full { width: 100%; margin-top: .5rem; }
-.error { color: #dc2626; margin-bottom: .75rem; font-size: .875rem; }
-.login-link { margin-top: 1rem; text-align: center; font-size: .875rem; color: #64748b; }
-.login-link a { color: #6366f1; }
+.error { color: var(--danger); margin-bottom: .75rem; font-size: .875rem; }
+.login-link { margin-top: 1rem; text-align: center; font-size: .875rem; color: var(--text-muted); }
+.login-link a { color: var(--primary); }
 </style>

@@ -1,5 +1,44 @@
-/* Design tokens */
+/* Design tokens
+ *
+ * The resolved theme is written to <html data-theme> before first paint by
+ * the inline script in index.html, then kept in sync by stores/theme.js.
+ * Light is the default so the tokens still resolve if that script is skipped.
+ */
 :root {
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 16px;
+
+  --transition: .15s ease;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Light */
+  color-scheme: light;
+  --bg:        #ffffff;
+  --surface:   #ffffff;
+  --surface2:  #f6f8fa;
+  --border:    #d8dee4;
+  --border2:   #c3cbd4;
+
+  --text:      #1f2328;
+  --text-muted: #59636e;
+  --text-faint: #868f99;
+
+  --primary:   #0969da;
+  --primary-bg:#ddf4ff;
+  --accent:    #8250df;
+  --success:   #1a7f37;
+  --warning:   #9a6700;
+  --danger:    #cf222e;
+  --info:      #0969da;
+
+  --overlay:   rgba(31,35,40,.08);
+  --shadow:    0 1px 3px rgba(31,35,40,.12), 0 4px 16px rgba(31,35,40,.06);
+  --shadow-lg: 0 8px 32px rgba(31,35,40,.16);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
   --bg:        #0d1117;
   --surface:   #161b22;
   --surface2:  #1c2330;
@@ -18,20 +57,13 @@
   --danger:    #f85149;
   --info:      #58a6ff;
 
-  --radius-sm: 6px;
-  --radius:    10px;
-  --radius-lg: 16px;
-
+  --overlay:   rgba(0,0,0,.4);
   --shadow:    0 1px 3px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.2);
   --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
-
-  --transition: .15s ease;
-  --font: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* Reset */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { color-scheme: dark; }
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -81,12 +113,12 @@ code, pre { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: .8
   letter-spacing: .02em;
   text-transform: uppercase;
 }
-.badge-success  { background: rgba(63,185,80,.15);  color: #3fb950; }
-.badge-warning  { background: rgba(210,153,34,.15); color: #d29922; }
-.badge-danger   { background: rgba(248,81,73,.15);  color: #f85149; }
-.badge-info     { background: rgba(88,166,255,.15); color: #58a6ff; }
-.badge-default  { background: rgba(125,133,144,.15);color: #7d8590; }
-.badge-accent   { background: rgba(188,140,255,.15);color: #bc8cff; }
+.badge-success  { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+.badge-warning  { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
+.badge-danger   { background: color-mix(in srgb, var(--danger) 15%, transparent);  color: var(--danger); }
+.badge-info     { background: color-mix(in srgb, var(--info) 15%, transparent);    color: var(--info); }
+.badge-default  { background: color-mix(in srgb, var(--text-muted) 15%, transparent); color: var(--text-muted); }
+.badge-accent   { background: color-mix(in srgb, var(--accent) 15%, transparent);  color: var(--accent); }
 
 /* Stat card */
 .stat-card {
@@ -104,10 +136,12 @@ code, pre { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: .8
 .stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1; }
 .stat-label { font-size: .8125rem; color: var(--text-muted); margin-top: .2rem; }
 
-/* Grid helpers */
-.grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; }
-.grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
-.grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 1.25rem; }
+/* Grid helpers
+ * auto-fit + minmax lets these reflow on their own; the min() keeps a single
+ * column from overflowing viewports narrower than the track minimum. */
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 1rem; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 1.25rem; }
 
 /* Page header */
 .page-header {
@@ -131,7 +165,10 @@ code, pre { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: .8
 }
 .empty i { font-size: 2.5rem; opacity: .4; display: block; margin-bottom: .75rem; }
 
-/* Table */
+/* Table
+ * Tables cannot reflow, so they scroll inside their own container rather
+ * than forcing the page to scroll sideways. */
+.table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .data-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
 .data-table th {
   text-align: left; padding: .6rem 1rem;
@@ -143,18 +180,79 @@ code, pre { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: .8
 .data-table tbody tr:hover { background: var(--surface2); }
 .data-table tbody tr:last-child td { border-bottom: none; }
 
-/* PrimeVue overrides */
+/* PrimeVue overrides
+ *
+ * PrimeVue has its own dark palette keyed off the '.dark' class on <html>
+ * (see main.js darkModeSelector). These rules only pin the shared surfaces to
+ * our tokens so both themes match the surrounding design.
+ */
 .p-button { border-radius: var(--radius-sm) !important; font-size: .875rem !important; }
-.p-inputtext, .p-password input {
+
+/* Every text-like control: input, textarea, password, and the closed
+ * select/multiselect boxes. */
+.p-inputtext,
+.p-textarea,
+.p-password input,
+.p-select,
+.p-multiselect,
+.p-inputnumber-input {
   background: var(--surface2) !important;
   border-color: var(--border2) !important;
   color: var(--text) !important;
   border-radius: var(--radius-sm) !important;
 }
-.p-inputtext:focus, .p-password input:focus {
+.p-inputtext:focus,
+.p-textarea:focus,
+.p-password input:focus,
+.p-select.p-focus,
+.p-multiselect.p-focus {
   border-color: var(--primary) !important;
-  box-shadow: 0 0 0 3px rgba(88,166,255,.2) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent) !important;
 }
+.p-select-label, .p-multiselect-label { color: var(--text) !important; }
+.p-select-dropdown, .p-multiselect-dropdown { color: var(--text-muted) !important; }
+.p-placeholder { color: var(--text-faint) !important; }
+
+/* Floating panels: select/multiselect lists, autocomplete, date pickers. */
+.p-select-overlay,
+.p-multiselect-overlay,
+.p-popover,
+.p-autocomplete-overlay,
+.p-datepicker-panel {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.p-select-option,
+.p-multiselect-option { color: var(--text) !important; }
+.p-select-option:hover,
+.p-multiselect-option:hover,
+.p-select-option.p-focus,
+.p-multiselect-option.p-focus { background: var(--surface2) !important; }
+.p-select-option.p-select-option-selected,
+.p-multiselect-option.p-multiselect-option-selected {
+  background: var(--primary-bg) !important;
+  color: var(--primary) !important;
+}
+.p-multiselect-header, .p-select-header {
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+/* Checkboxes inside multiselect options */
+.p-checkbox-box {
+  background: var(--surface2) !important;
+  border-color: var(--border2) !important;
+}
+.p-checkbox-checked .p-checkbox-box {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Chips shown for selected roles */
+.p-chip { background: var(--surface2) !important; color: var(--text) !important; }
+.p-dialog-mask { background: var(--overlay) !important; }
 .p-dialog { background: var(--surface) !important; border: 1px solid var(--border) !important; border-radius: var(--radius-lg) !important; }
 .p-dialog .p-dialog-header { background: var(--surface) !important; border-bottom: 1px solid var(--border) !important; }
 .p-dialog .p-dialog-content { background: var(--surface) !important; }
@@ -166,3 +264,30 @@ code, pre { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: .8
 .p-datatable .p-datatable-tbody > tr:hover { background: var(--surface2) !important; }
 .p-datatable .p-datatable-tbody > tr > td { border-color: var(--border) !important; }
 .p-paginator { background: var(--surface) !important; border-color: var(--border) !important; color: var(--text-muted) !important; }
+
+/* ---------------------------------------------------------------------------
+ * Responsive
+ * ------------------------------------------------------------------------- */
+
+/* Dialogs are sized with inline pixel widths at their call sites; cap them so
+ * they never exceed the viewport on small screens. */
+.p-dialog {
+  max-width: calc(100vw - 2rem) !important;
+  max-height: calc(100vh - 2rem);
+}
+.p-dialog .p-dialog-content { overflow-y: auto; }
+
+/* Long unbroken strings (URLs, hashes) must not widen the page. */
+.info-val, .mono, code { overflow-wrap: anywhere; }
+
+@media (max-width: 860px) {
+  .page-header { flex-direction: column; align-items: stretch; }
+  .grid-2 { gap: 1rem; }
+  .card { padding: 1.25rem; }
+}
+
+@media (max-width: 560px) {
+  .card { padding: 1rem; }
+  .page-title { font-size: 1.25rem; }
+  .data-table th, .data-table td { padding: .5rem .625rem; }
+}

@@ -105,12 +105,13 @@ async function uploadAvatar(e) {
 <style scoped>
 .profile-page { max-width: 900px; }
 .profile-grid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem; align-items: start; }
-.card { background: #fff; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+@media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
 .avatar-card { display: flex; flex-direction: column; align-items: center; gap: 1rem; min-width: 160px; }
 .avatar-lg { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; }
-.avatar-placeholder-lg { width: 96px; height: 96px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: #fff; }
+.avatar-placeholder-lg { width: 96px; height: 96px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: #fff; }
 .form-card h4 { margin-bottom: 1rem; font-weight: 600; }
 .field { margin-bottom: 1rem; display: flex; flex-direction: column; gap: .25rem; }
-.field label { font-size: .875rem; color: #64748b; }
+.field label { font-size: .875rem; color: var(--text-muted); }
 .w-full { width: 100%; }
 </style>

@@ -27,11 +27,14 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (!to.meta.public && !auth.token) {
     return '/login'
   }
+  // Wait for /auth/me so a hard refresh of a role-gated route is not
+  // bounced to '/' just because roles have not loaded yet.
+  await auth.ensureReady()
   if (to.meta.roles && !to.meta.roles.some(r => auth.roles.includes(r))) {
     return '/'
   }

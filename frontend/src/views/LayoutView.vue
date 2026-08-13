@@ -52,6 +52,9 @@
             <div class="user-role">{{ primaryRole }}</div>
           </div>
         </RouterLink>
+        <button class="logout-btn" :title="theme.label" @click="theme.toggle()">
+          <i :class="theme.icon" />
+        </button>
         <button class="logout-btn" title="Sign out" @click="auth.logout(); $router.push('/login')">
           <i class="pi pi-sign-out" />
         </button>
@@ -70,9 +73,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
+import { useThemeStore } from '../stores/theme.js'
 import api from '../api/client.js'
 
 const auth = useAuthStore()
+const theme = useThemeStore()
 const pendingCount = ref(0)
 
 const initials = computed(() => {
@@ -187,6 +192,46 @@ onMounted(async () => {
 .logout-btn:hover { background: rgba(248,81,73,.15); color: var(--danger); }
 
 /* Main */
-.main { flex: 1; overflow: auto; display: flex; flex-direction: column; }
+.main { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; }
 .main-inner { flex: 1; padding: 2rem 2.5rem; max-width: 1200px; width: 100%; }
+
+/* Responsive
+ * Below 1024px the sidebar collapses to icons; below 720px it becomes a
+ * horizontal bar above the content so the main column keeps full width. */
+@media (max-width: 1024px) {
+  .sidebar { width: 68px; padding: 1.25rem .5rem; }
+  .brand { justify-content: center; padding: .25rem 0 1.25rem; }
+  .brand > div:last-child,
+  .nav-item span,
+  .user-info { display: none; }
+  .nav-sep { text-align: center; font-size: 0; padding: .5rem 0 .25rem; }
+  .nav-sep::after { content: '·'; font-size: .875rem; color: var(--text-faint); }
+  .nav-item { justify-content: center; padding: .5rem; }
+  .nav-badge { position: absolute; top: 2px; right: 2px; margin-left: 0; }
+  .sidebar-footer { flex-direction: column; gap: .25rem; }
+  .user-chip { justify-content: center; flex: none; padding: .375rem; }
+  .main-inner { padding: 1.5rem; }
+}
+
+@media (max-width: 720px) {
+  .shell { flex-direction: column; }
+  .sidebar {
+    width: 100%; height: auto; position: sticky; top: 0; z-index: 20;
+    flex-direction: row; align-items: center; gap: .5rem;
+    border-right: none; border-bottom: 1px solid var(--border);
+    padding: .5rem .75rem;
+  }
+  .brand { border-bottom: none; margin-bottom: 0; padding: 0; }
+  .nav {
+    flex: 1; flex-direction: row; align-items: center;
+    gap: .125rem; overflow-x: auto; scrollbar-width: none;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-sep { display: none; }
+  .sidebar-footer {
+    flex-direction: row; border-top: none; margin-top: 0;
+    padding: 0; gap: .25rem;
+  }
+  .main-inner { padding: 1.25rem 1rem; }
+}
 </style>

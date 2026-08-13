@@ -16,7 +16,7 @@
       <div v-else-if="!jobs.length" class="empty">
         <i class="pi pi-server"/>No build jobs yet
       </div>
-      <table v-else class="data-table">
+      <div v-else class="table-wrap"><table class="data-table">
         <thead>
           <tr>
             <th>Job ID</th>
@@ -46,7 +46,7 @@
             </td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
     </div>
 
     <!-- Log dialog -->

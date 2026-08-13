@@ -125,14 +125,14 @@ onMounted(load)
 
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-.text-muted { color: #64748b; font-size: .875rem; }
+.text-muted { color: var(--text-muted); font-size: .875rem; }
 .posts-list { display: flex; flex-direction: column; gap: .75rem; }
-.empty { text-align: center; padding: 3rem; color: #94a3b8; }
+.empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 .center { text-align: center; padding: 2rem; }
 .clickable { cursor: pointer; }
 .replies-title { margin-bottom: .75rem; font-weight: 600; }
 .replies-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; max-height: 300px; overflow-y: auto; }
-.reply-form { border-top: 1px solid #f1f5f9; padding-top: 1rem; }
+.reply-form { border-top: 1px solid var(--border); padding-top: 1rem; }
 .w-full { width: 100%; }
 .mt-2 { margin-top: .5rem; }
 </style>

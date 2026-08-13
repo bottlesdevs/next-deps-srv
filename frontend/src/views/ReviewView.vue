@@ -5,7 +5,7 @@
 
     <div v-if="loading" class="center"><ProgressSpinner /></div>
     <div v-else-if="pending.length === 0" class="empty">
-      <i class="pi pi-check-circle" style="font-size:2rem;color:#16a34a"></i>
+      <i class="pi pi-check-circle" style="font-size:2rem;color:var(--success)"></i>
       <p>All caught up! No pending reviews.</p>
     </div>
     <div v-else>
@@ -94,19 +94,18 @@ onMounted(load)
 
 <style scoped>
 h2 { margin-bottom: .25rem; }
-.subtitle { color: #64748b; font-size: .875rem; margin-bottom: 1.5rem; }
+.subtitle { color: var(--text-muted); font-size: .875rem; margin-bottom: 1.5rem; }
 .center { display: flex; justify-content: center; padding: 2rem; }
-.empty { text-align: center; padding: 3rem; color: #64748b; }
+.empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 .empty i { display: block; margin-bottom: .75rem; }
-.dep-card { background: #fff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.dep-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: var(--shadow); }
 .dep-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
 .dep-info p { font-size: .875rem; margin-bottom: .35rem; }
-code { font-size: .75rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
-.dep-actions { display: flex; gap: .75rem; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+code { font-size: .75rem; background: var(--surface2); color: var(--text); padding: 2px 6px; border-radius: 4px; }
+.dep-actions { display: flex; gap: .75rem; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .ver { font-weight: 400; color: var(--text-muted, #6b7280); font-size: .875rem; }
 .artifacts { margin-top: .5rem; }
 .artifact { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .35rem 0; font-size: .8125rem; }
 .artifact .sum { font-family: monospace; font-size: .72rem; word-break: break-all; }
 .artifact .tagline { color: var(--text-muted, #6b7280); font-size: .72rem; }
-.artifact .warn { color: #d97706; font-size: .72rem; }
 </style>

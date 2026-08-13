@@ -137,7 +137,7 @@ onMounted(load)
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .form .field { display: flex; flex-direction: column; gap: .25rem; margin-bottom: 1rem; }
-.form .field label { font-size: .875rem; color: #64748b; }
+.form .field label { font-size: .875rem; color: var(--text-muted); }
 .w-full { width: 100%; }
 .mr-1 { margin-right: .25rem; }
 </style>
