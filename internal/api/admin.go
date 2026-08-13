@@ -128,6 +128,23 @@ func (srv *Server) adminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (srv *Server) adminDeleteDep(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFrom(r)
+	id := r.PathValue("id")
+	dep, err := srv.store.GetDep(r.Context(), id)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	if err := srv.store.DeleteDep(r.Context(), id); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "delete failed"})
+		return
+	}
+	details := string(dep.Kind) + " " + dep.Entry.Name + " " + dep.Entry.Version
+	logAudit(r.Context(), srv.store, claims.UserID, claims.Username, "admin_delete_dep", id, details, ipFrom(r))
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (srv *Server) adminListJobs(w http.ResponseWriter, r *http.Request) {
 	page, limit := pageLimit(r)
 	jobs, err := srv.store.ListJobs(r.Context())

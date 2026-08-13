@@ -11,6 +11,16 @@
         <div class="dep-hero-top">
           <h1 class="page-title">{{ dep.name }}</h1>
           <span :class="['badge', badgeClass(dep.status)]">{{ dep.status }}</span>
+          <Button
+            v-if="auth.isAdmin"
+            label="Delete reference"
+            icon="pi pi-trash"
+            severity="danger"
+            size="small"
+            text
+            :loading="deleting"
+            @click="deleteReference"
+          />
         </div>
         <p class="page-subtitle" v-if="dep.description">{{ dep.description }}</p>
         <div class="dep-meta-row">
@@ -71,7 +81,7 @@
       <!-- Right: indexed files -->
       <div class="card">
         <div class="card-title">Indexed Files</div>
-        <div v-if="loadingFiles" class="empty"><i class="pi pi-spin pi-spinner"/>Loading…</div>
+        <div v-if="loadingFiles" class="empty"><i class="pi pi-spin pi-spinner"/>Loading...</div>
         <div v-else-if="filesError" class="empty">
           <i class="pi pi-exclamation-triangle"/>{{ filesError }}
           <div><button class="retry-btn" @click="loadFiles($route.params.id)">Retry</button></div>
@@ -82,7 +92,7 @@
         <div v-else>
           <div class="files-search-wrap">
             <i class="pi pi-search" style="position:absolute;left:.75rem;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--text-faint)"/>
-            <input v-model="fileSearch" placeholder="Filter files…" class="files-search" />
+            <input v-model="fileSearch" placeholder="Filter files..." class="files-search" />
           </div>
           <div class="file-list">
             <button
@@ -110,7 +120,7 @@
         <div v-for="rev in fileDialog.revisions" :key="rev.id" class="rev-row">
           <div class="rev-info">
             <span class="rev-num">Rev {{ rev.revision_num }}</span>
-            <code class="rev-hash">{{ rev.hash?.slice(0,16) }}…</code>
+            <code class="rev-hash">{{ rev.hash?.slice(0,16) }}...</code>
             <span class="rev-size">{{ formatSize(rev.size_bytes) }}</span>
             <span v-if="rev.platform" class="rev-size">{{ rev.platform }}</span>
           </div>
@@ -131,13 +141,20 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
+import { useAuthStore } from '../stores/auth.js'
 import api from '../api/client.js'
+import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 
 const route = useRoute()
+const router = useRouter()
+const toast = useToast()
+const auth = useAuthStore()
 const dep          = ref(null)
 const loading      = ref(true)
+const deleting     = ref(false)
 const loadingFiles = ref(false)
 const files        = ref([])
 const fileSearch   = ref('')
@@ -203,6 +220,20 @@ async function loadFiles(depId) {
       : e.response?.data?.error || 'Could not load indexed files'
   } finally {
     loadingFiles.value = false
+  }
+}
+
+async function deleteReference() {
+  const name = dep.value?.name || 'this entry'
+  if (!confirm(`Delete the catalog reference for ${name}? Indexed bucket files will be kept.`)) return
+
+  deleting.value = true
+  try {
+    await api.delete(`/admin/deps/${route.params.id}`)
+    toast.add({ severity: 'success', summary: 'Reference deleted', life: 2000 })
+    await router.push('/deps')
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -324,4 +355,3 @@ onMounted(async () => {
 
 .loading-center { display: flex; align-items: center; justify-content: center; padding: 5rem; }
 </style>
-

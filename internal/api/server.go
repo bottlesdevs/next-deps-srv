@@ -101,6 +101,7 @@ func (srv *Server) Handler(rl *middleware.RateLimiter) http.Handler {
 	mux.Handle("GET /api/v1/admin/users/{id}", adminMW(http.HandlerFunc(srv.adminGetUser)))
 	mux.Handle("PUT /api/v1/admin/users/{id}", adminMW(http.HandlerFunc(srv.adminUpdateUser)))
 	mux.Handle("DELETE /api/v1/admin/users/{id}", adminMW(http.HandlerFunc(srv.adminDeleteUser)))
+	mux.Handle("DELETE /api/v1/admin/deps/{id}", adminMW(http.HandlerFunc(srv.adminDeleteDep)))
 	mux.Handle("GET /api/v1/admin/jobs", adminMW(http.HandlerFunc(srv.adminListJobs)))
 	mux.Handle("GET /api/v1/admin/jobs/{id}", adminMW(http.HandlerFunc(srv.adminGetJob)))
 	mux.Handle("GET /api/v1/admin/jobs/{id}/log", adminMW(http.HandlerFunc(srv.adminJobLog)))
