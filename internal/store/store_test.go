@@ -104,7 +104,17 @@ func TestDepCRUD(t *testing.T) {
 		Name:        "openssl",
 		Status:      "pending_review",
 		SubmittedBy: "user-1",
-		Manifest:    models.Manifest{Name: "openssl", URL: "http://example.com", ExpectedHash: "abc"},
+		Item: models.Item{
+			ID:      "openssl",
+			Name:    "openssl",
+			Version: "3.0.0",
+			Artifacts: []models.Artifact{{
+				URL:           "http://example.com/openssl.tar.gz",
+				FileName:      "openssl.tar.gz",
+				Size:          1024,
+				ComponentRoot: "openssl",
+			}},
+		},
 	})
 	if err != nil {
 		t.Fatalf("CreateDep: %v", err)
