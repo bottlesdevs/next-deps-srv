@@ -17,7 +17,7 @@ import (
 	"github.com/bottlesdevs/next-deps-srv/internal/queue"
 	"github.com/bottlesdevs/next-deps-srv/internal/store"
 	"github.com/google/uuid"
-	"github.com/mirkobrombin/go-cli-builder/v2/pkg/cli"
+	"github.com/mirkobrombin/go-cli-builder/v3/pkg/cli"
 )
 
 type CLI struct {

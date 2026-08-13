@@ -85,12 +85,10 @@ github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zk
 github.com/matttproud/golang_protobuf_extensions v1.0.4/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
 github.com/mirkobrombin/dabadee v1.0.0 h1:64b6U/dAaMyMMjb6D6B+ZN8Wc52fJokXmyKJwcT8zAU=
 github.com/mirkobrombin/dabadee v1.0.0/go.mod h1:vc6n8YWFRJ9LcRFxdDGQ9MjdYZv7s6+R8tlvTZplJrs=
-github.com/mirkobrombin/go-cli-builder/v2 v2.0.5 h1:ASWEhdH5sPUVVQ9OC/1uuDLPvglBqy8JMcw0YojvSIo=
-github.com/mirkobrombin/go-cli-builder/v2 v2.0.5/go.mod h1:jqg09VyejIcNMrGSz4zflb1VO1dOZ6h4hKfmGkXv110=
-github.com/mirkobrombin/go-foundation v0.3.0 h1:tOVNLd6zYCG0z9tKAudmlDjJBYLITEEk6VBiAF8fXeM=
-github.com/mirkobrombin/go-foundation v0.3.0/go.mod h1:ScQBotKzuC5Lxi61Wyw0h8NaeGKsuwp4xHwPj5Mj9DY=
-github.com/mirkobrombin/go-foundation/v2 v2.1.0 h1:AliJbX23Uhs29PlybYd2/rJT7YE5tm2Pq7fLboD+28k=
-github.com/mirkobrombin/go-foundation/v2 v2.1.0/go.mod h1:fYCg04t/V9/vJ10itHY9kk6qbix7D1POxBoHec0x1CE=
+github.com/mirkobrombin/go-cli-builder/v3 v3.0.2 h1:ZmKXMRmMkguBdvmIVc8itVkLCmAAZnv0OfzPY7lksI4=
+github.com/mirkobrombin/go-cli-builder/v3 v3.0.2/go.mod h1:s+7oN/tmololI2kOcrQcNGdAlMqEDlzDcqkeRQ1RNTk=
+github.com/mirkobrombin/go-foundation/v2 v2.3.3 h1:XpGZ/pU2JjzPmIhCB5OmLjn1uKi6I5KHE2akjkwjE0o=
+github.com/mirkobrombin/go-foundation/v2 v2.3.3/go.mod h1:fYCg04t/V9/vJ10itHY9kk6qbix7D1POxBoHec0x1CE=
 github.com/mirkobrombin/go-slipstream v1.1.0 h1:S8+m5wtaapqxQt9aG54ENsbm5eVo+nRlWg/d2JE/xAE=
 github.com/mirkobrombin/go-slipstream v1.1.0/go.mod h1:DmrqCDF6pFSXzdCRam39HSUQF75tRq9FLaD1BvcCqGE=
 github.com/mirkobrombin/go-warp v1.2.2 h1:9LtN0o839zsQ25ThDz/sdgiYoShqWlJKqpjdUE//ddg=

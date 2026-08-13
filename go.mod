@@ -10,7 +10,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/mirkobrombin/dabadee v1.0.0
-	github.com/mirkobrombin/go-cli-builder/v2 v2.0.5
+	github.com/mirkobrombin/go-cli-builder/v3 v3.0.2
 	github.com/mirkobrombin/go-slipstream v1.1.0
 	golang.org/x/crypto v0.49.0
 )
@@ -42,8 +42,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
-	github.com/mirkobrombin/go-foundation v0.3.0 // indirect
-	github.com/mirkobrombin/go-foundation/v2 v2.1.0 // indirect
+	github.com/mirkobrombin/go-foundation/v2 v2.3.3 // indirect
 	github.com/mirkobrombin/go-warp v1.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.17.0 // indirect
