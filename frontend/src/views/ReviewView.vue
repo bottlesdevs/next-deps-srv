@@ -11,14 +11,24 @@
     <div v-else>
       <div v-for="dep in pending" :key="dep.id" class="dep-card">
         <div class="dep-header">
-          <h3>{{ dep.manifest.name }}</h3>
+          <h3>{{ dep.item?.name }} <span class="ver">{{ dep.item?.version }}</span></h3>
           <Tag :value="dep.status" severity="warning" />
         </div>
         <div class="dep-info">
-          <p><b>URL:</b> <a :href="dep.manifest.url" target="_blank">{{ dep.manifest.url }}</a></p>
-          <p><b>SHA256:</b> <code>{{ dep.manifest.expected_hash }}</code></p>
-          <p><b>License:</b> {{ dep.manifest.license || '-' }}</p>
+          <p><b>Item ID:</b> <code>{{ dep.item?.id }}</code></p>
+          <p v-if="dep.item?.kind"><b>Kind:</b> {{ dep.item.kind.type }} / {{ dep.item.kind.flavour }}</p>
+          <p><b>License:</b> {{ dep.license || '-' }}</p>
           <p><b>Submitted by:</b> {{ dep.submitted_by }}</p>
+          <div class="artifacts">
+            <b>Artifacts ({{ dep.item?.artifacts?.length || 0 }}):</b>
+            <div v-for="(a, i) in dep.item?.artifacts || []" :key="i" class="artifact">
+              <a :href="a.url" target="_blank">{{ a.file_name }}</a>
+              <span v-if="a.platform" class="tagline">{{ a.platform.os }}/{{ a.platform.arch }}</span>
+              <code v-if="a.checksum" class="sum">{{ a.checksum.algorithm }}:{{ a.checksum.value }}</code>
+              <span v-else class="warn">no checksum</span>
+              <span class="tagline">root: {{ a.component_root }}</span>
+            </div>
+          </div>
         </div>
         <div class="dep-actions">
           <InputText v-model="notes[dep.id]" placeholder="Review note (optional)" />
@@ -57,7 +67,7 @@ async function load() {
 async function approve(dep) {
   try {
     await store.approveDep(dep.id)
-    toast.add({ severity: 'success', summary: 'Approved', detail: dep.manifest.name + ' approved', life: 3000 })
+    toast.add({ severity: 'success', summary: 'Approved', detail: dep.item.name + ' approved', life: 3000 })
     await load()
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Failed', life: 3000 })
@@ -67,7 +77,7 @@ async function approve(dep) {
 async function reject(dep) {
   try {
     await store.rejectDep(dep.id, notes.value[dep.id] || '')
-    toast.add({ severity: 'info', summary: 'Rejected', detail: dep.manifest.name + ' rejected', life: 3000 })
+    toast.add({ severity: 'info', summary: 'Rejected', detail: dep.item.name + ' rejected', life: 3000 })
     await load()
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Failed', life: 3000 })
@@ -88,4 +98,10 @@ h2 { margin-bottom: .25rem; }
 .dep-info p { font-size: .875rem; margin-bottom: .35rem; }
 code { font-size: .75rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
 .dep-actions { display: flex; gap: .75rem; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #f1f5f9; }
+.ver { font-weight: 400; color: var(--text-muted, #6b7280); font-size: .875rem; }
+.artifacts { margin-top: .5rem; }
+.artifact { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .35rem 0; font-size: .8125rem; }
+.artifact .sum { font-family: monospace; font-size: .72rem; word-break: break-all; }
+.artifact .tagline { color: var(--text-muted, #6b7280); font-size: .72rem; }
+.artifact .warn { color: #d97706; font-size: .72rem; }
 </style>

@@ -25,8 +25,16 @@ export const useDepsStore = defineStore('deps', () => {
     return data.items || []
   }
 
-  async function submitDep(manifest) {
-    const { data } = await api.post('/deps', manifest)
+  // item is a catalog item (id, name, version, kind, artifacts) plus the
+  // optional category/description/license metadata.
+  async function submitDep(item) {
+    const { data } = await api.post('/deps', item)
+    return data
+  }
+
+  // The published catalog document: { schema_version, items }.
+  async function fetchCatalog() {
+    const { data } = await api.get('/catalog')
     return data
   }
 
@@ -45,5 +53,5 @@ export const useDepsStore = defineStore('deps', () => {
     return data
   }
 
-  return { deps, total, loading, page, limit, fetchDeps, fetchPending, submitDep, approveDep, rejectDep, getDep }
+  return { deps, total, loading, page, limit, fetchDeps, fetchPending, fetchCatalog, submitDep, approveDep, rejectDep, getDep }
 })

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/bottlesdevs/next-deps-srv/internal/middleware"
@@ -21,6 +22,29 @@ func (srv *Server) listDeps(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, paginate(deps, page, limit))
 }
 
+// catalog serves the published catalog document: schema_version plus every
+// built dependency's item. This is the endpoint consumers fetch.
+func (srv *Server) catalog(w http.ResponseWriter, r *http.Request) {
+	deps, err := srv.store.ListApprovedDeps(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "store error"})
+		return
+	}
+	sort.Slice(deps, func(i, j int) bool { return deps[i].UpdatedAt.After(deps[j].UpdatedAt) })
+	doc := models.Catalog{SchemaVersion: models.SchemaVersion, Items: make([]models.Item, 0, len(deps))}
+	seen := make(map[string]struct{}, len(deps))
+	for _, d := range deps {
+		// items must be unique; the newest build of an id+version wins.
+		key := d.Item.ID + "\x00" + d.Item.Version
+		if _, dup := seen[key]; dup {
+			continue
+		}
+		seen[key] = struct{}{}
+		doc.Items = append(doc.Items, d.Item)
+	}
+	writeJSON(w, http.StatusOK, doc)
+}
+
 func (srv *Server) getDep(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	dep, err := srv.store.GetDep(r.Context(), id)
@@ -31,23 +55,35 @@ func (srv *Server) getDep(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dep)
 }
 
+// submitDepBody is a catalog item plus the descriptive metadata the site
+// shows but the published catalog document does not carry.
+type submitDepBody struct {
+	models.Item
+	Category    string `json:"category"`
+	Description string `json:"description"`
+	License     string `json:"license"`
+}
+
 func (srv *Server) submitDep(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFrom(r)
-	var body models.Manifest
+	var body submitDepBody
 	if err := readJSON(r, &body); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
 		return
 	}
-	if body.Name == "" || body.URL == "" || body.ExpectedHash == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name, url and expected_hash required"})
+	if err := body.Item.Validate(); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 	dep, err := srv.store.CreateDep(r.Context(), models.Dependency{
 		ID:          uuid.NewString(),
-		Name:        body.Name,
+		Name:        body.Item.Name,
+		Category:    body.Category,
+		Description: body.Description,
+		License:     body.License,
 		Status:      "pending_review",
 		SubmittedBy: claims.UserID,
-		Manifest:    body,
+		Item:        body.Item,
 		CreatedAt:   time.Now(),
 	})
 	if err != nil {

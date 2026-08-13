@@ -2,7 +2,6 @@ package api
 
 import (
 	"archive/zip"
-	"context"
 	"fmt"
 	"io"
 	"log"

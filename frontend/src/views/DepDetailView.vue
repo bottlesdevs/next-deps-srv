@@ -12,31 +12,53 @@
           <h1 class="page-title">{{ dep.name }}</h1>
           <span :class="['badge', badgeClass(dep.status)]">{{ dep.status }}</span>
         </div>
-        <p class="page-subtitle" v-if="dep.manifest?.description">{{ dep.manifest.description }}</p>
+        <p class="page-subtitle" v-if="dep.description">{{ dep.description }}</p>
         <div class="dep-meta-row">
-          <span class="dep-meta-chip" v-if="dep.manifest?.license"><i class="pi pi-file"/>{{ dep.manifest.license }}</span>
-          <span class="dep-meta-chip" v-if="dep.manifest?.arch"><i class="pi pi-desktop"/>{{ dep.manifest.arch }}</span>
-          <span class="dep-meta-chip" v-if="dep.manifest?.version"><i class="pi pi-tag"/>v{{ dep.manifest.version }}</span>
+          <span class="dep-meta-chip" v-if="dep.license"><i class="pi pi-file"/>{{ dep.license }}</span>
+          <span class="dep-meta-chip" v-if="dep.item?.version"><i class="pi pi-tag"/>v{{ dep.item.version }}</span>
+          <span class="dep-meta-chip" v-if="dep.item?.kind"><i class="pi pi-box"/>{{ dep.item.kind.type }} / {{ dep.item.kind.flavour }}</span>
+          <span class="dep-meta-chip" v-for="p in platforms" :key="p"><i class="pi pi-desktop"/>{{ p }}</span>
         </div>
       </div>
     </div>
 
     <div class="detail-grid">
-      <!-- Left: manifest info -->
+      <!-- Left: catalog item + artifacts -->
       <div class="card">
-        <div class="card-title">Manifest</div>
+        <div class="card-title">Artifacts</div>
         <div class="info-rows">
           <div class="info-row">
-            <span class="info-key">Download URL</span>
-            <a :href="dep.manifest?.url" target="_blank" class="info-val link">{{ dep.manifest?.url }}</a>
+            <span class="info-key">Item ID</span>
+            <code class="info-val mono">{{ dep.item?.id }}</code>
           </div>
-          <div class="info-row" v-if="dep.manifest?.expected_hash">
-            <span class="info-key">Expected hash</span>
-            <code class="info-val mono">{{ dep.manifest.expected_hash }}</code>
-          </div>
-          <div class="info-row" v-if="dep.manifest?.license">
-            <span class="info-key">License</span>
-            <span class="info-val">{{ dep.manifest.license }}</span>
+        </div>
+        <div v-if="!dep.item?.artifacts?.length" class="empty">
+          <i class="pi pi-box"/>No artifacts declared
+        </div>
+        <div v-else class="artifact-list">
+          <div v-for="(a, i) in dep.item.artifacts" :key="i" class="artifact-block">
+            <div class="artifact-head">
+              <span class="artifact-name">{{ a.file_name }}</span>
+              <span v-if="a.platform" class="artifact-plat">{{ a.platform.os }}/{{ a.platform.arch }}</span>
+            </div>
+            <div class="info-rows">
+              <div class="info-row">
+                <span class="info-key">Download URL</span>
+                <a :href="a.url" target="_blank" class="info-val link">{{ a.url }}</a>
+              </div>
+              <div class="info-row" v-if="a.checksum">
+                <span class="info-key">{{ a.checksum.algorithm }}</span>
+                <code class="info-val mono">{{ a.checksum.value }}</code>
+              </div>
+              <div class="info-row" v-if="a.size">
+                <span class="info-key">Size</span>
+                <span class="info-val">{{ formatSize(a.size) }}</span>
+              </div>
+              <div class="info-row" v-if="a.component_root">
+                <span class="info-key">Component root</span>
+                <code class="info-val mono">{{ a.component_root }}</code>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -81,6 +103,7 @@
             <span class="rev-num">Rev {{ rev.revision_num }}</span>
             <code class="rev-hash">{{ rev.hash?.slice(0,16) }}…</code>
             <span class="rev-size">{{ formatSize(rev.size_bytes) }}</span>
+            <span v-if="rev.platform" class="rev-size">{{ rev.platform }}</span>
           </div>
           <a :href="rev.download_url" download class="rev-dl">
             <i class="pi pi-download"/> Download
@@ -110,6 +133,13 @@ const loadingFiles = ref(false)
 const files        = ref([])
 const fileSearch   = ref('')
 const fileDialog   = ref({ visible: false, name: '', revisions: [] })
+
+const platforms = computed(() => {
+  const seen = (dep.value?.item?.artifacts || [])
+    .filter(a => a.platform)
+    .map(a => `${a.platform.os}/${a.platform.arch}`)
+  return [...new Set(seen)]
+})
 
 const filteredFiles = computed(() =>
   fileSearch.value
@@ -198,6 +228,16 @@ onMounted(async () => {
 .info-val { font-size: .875rem; color: var(--text); }
 .info-val.link { color: var(--primary); word-break: break-all; }
 .info-val.mono { font-family: 'JetBrains Mono', monospace; font-size: .8rem; background: var(--surface2); padding: .2rem .5rem; border-radius: 4px; word-break: break-all; }
+
+/* Artifacts */
+.artifact-list { display: flex; flex-direction: column; gap: .75rem; margin-top: .875rem; }
+.artifact-block { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .75rem; }
+.artifact-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
+.artifact-name { font-size: .875rem; font-weight: 600; word-break: break-all; }
+.artifact-plat {
+  background: var(--surface2); border-radius: 999px; padding: .15rem .6rem;
+  font-size: .7rem; color: var(--text-muted); flex-shrink: 0;
+}
 
 /* Files */
 .files-search-wrap { position: relative; margin-bottom: .75rem; }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bottlesdevs/next-deps-srv/internal/bucket"
@@ -36,7 +37,11 @@ func runJob(ctx context.Context, job models.BuildJob, dep models.Dependency, s *
 		notifyBuildResult(ctx, job, dep, s, mailer)
 	}
 
-	log("⬇️  Downloading %s", dep.Manifest.URL)
+	if len(dep.Item.Artifacts) == 0 {
+		fail(fmt.Errorf("item %s has no artifacts to build", dep.Item.ID))
+		return
+	}
+
 	tmp, err := os.MkdirTemp("", "ndeps-job-*")
 	if err != nil {
 		fail(err)
@@ -44,58 +49,26 @@ func runJob(ctx context.Context, job models.BuildJob, dep models.Dependency, s *
 	}
 	defer os.RemoveAll(tmp)
 
-	archivePath := filepath.Join(tmp, "archive")
-	if err := downloadFile(dep.Manifest.URL, archivePath); err != nil {
-		fail(err)
-		return
-	}
-	log("✅ Download complete")
+	log("🧩 %s %s — %d artifact(s)", dep.Item.Name, dep.Item.Version, len(dep.Item.Artifacts))
 
-	log("🔍 Verifying MD5 hash...")
-	hash, err := bucket.FileHash(archivePath)
-	if err != nil {
-		fail(err)
-		return
-	}
-	if hash != dep.Manifest.ExpectedHash {
-		fail(fmt.Errorf("hash mismatch: got %s want %s", hash, dep.Manifest.ExpectedHash))
-		return
-	}
-	log("✅ Hash OK: %s", hash)
+	total := 0
+	for n, art := range dep.Item.Artifacts {
+		label := art.FileName
+		if p := art.Platform.String(); p != "" {
+			label = fmt.Sprintf("%s (%s)", art.FileName, p)
+		}
+		log("── artifact %d/%d: %s", n+1, len(dep.Item.Artifacts), label)
 
-	// Index the archive itself as a bucket file.
-	log("📁 Indexing source archive...")
-	archiveFilename := path.Base(dep.Manifest.URL)
-	if archiveFilename == "" || archiveFilename == "." {
-		archiveFilename = "archive_" + job.ID
-	}
-	if n, err := indexOneFile(ctx, archivePath, archiveFilename, job, dep, hash, s, backend); err != nil {
-		log("⚠️  Could not index archive: %v", err)
-	} else {
-		log("  📦 %s [%s]", archiveFilename, n)
+		count, err := buildArtifact(ctx, filepath.Join(tmp, fmt.Sprintf("artifact-%d", n)), art, job, dep, s, backend, log)
+		if err != nil {
+			fail(fmt.Errorf("artifact %s: %w", art.FileName, err))
+			return
+		}
+		total += count
 	}
 
-	extractDir := filepath.Join(tmp, "extracted")
-	if err := os.MkdirAll(extractDir, 0755); err != nil {
-		fail(err)
-		return
-	}
-	log("📦 Extracting archive (recursive)...")
-	if err := bucket.ExtractAll(archivePath, extractDir, 4, log); err != nil {
-		fail(err)
-		return
-	}
-	log("✅ Extraction complete")
-
-	log("🗂️  Indexing files...")
-	count, err := indexFiles(ctx, extractDir, job, dep, hash, s, backend, log)
-	if err != nil {
-		fail(err)
-		return
-	}
-
-	log("✅ Indexed %d file(s)", count)
-	job.FilesIndexed = count
+	log("✅ Indexed %d file(s) across %d artifact(s)", total, len(dep.Item.Artifacts))
+	job.FilesIndexed = total
 	job.Status = "done"
 	job.FinishedAt = time.Now()
 	_ = s.UpdateJob(ctx, job)
@@ -106,13 +79,122 @@ func runJob(ctx context.Context, job models.BuildJob, dep models.Dependency, s *
 	notifyBuildResult(ctx, job, dep, s, mailer)
 }
 
-func indexFiles(ctx context.Context, dir string, job models.BuildJob, dep models.Dependency, archiveHash string, s *store.Store, backend bucket.Backend, log func(string, ...any)) (int, error) {
+// buildArtifact downloads one artifact, verifies it against its declared
+// checksum and size, extracts it, and indexes everything under the artifact's
+// component_root. Returns the number of files indexed.
+func buildArtifact(ctx context.Context, workDir string, art models.Artifact, job models.BuildJob, dep models.Dependency, s *store.Store, backend bucket.Backend, log func(string, ...any)) (int, error) {
+	if err := os.MkdirAll(workDir, 0755); err != nil {
+		return 0, err
+	}
+
+	log("⬇️  Downloading %s", art.URL)
+	archivePath := filepath.Join(workDir, "archive")
+	if err := downloadFile(art.URL, archivePath); err != nil {
+		return 0, err
+	}
+	log("✅ Download complete")
+
+	if art.Size > 0 {
+		info, err := os.Stat(archivePath)
+		if err != nil {
+			return 0, err
+		}
+		if info.Size() != art.Size {
+			return 0, fmt.Errorf("size mismatch: got %d bytes, want %d", info.Size(), art.Size)
+		}
+		log("✅ Size OK: %d bytes", info.Size())
+	}
+
+	if art.Checksum != nil {
+		log("🔍 Verifying %s checksum...", art.Checksum.Algorithm)
+		sum, err := bucket.HashFileWith(archivePath, art.Checksum.Algorithm)
+		if err != nil {
+			return 0, err
+		}
+		if !bucket.ChecksumEqual(sum, art.Checksum.Value) {
+			return 0, fmt.Errorf("checksum mismatch: got %s want %s", sum, art.Checksum.Value)
+		}
+		log("✅ Checksum OK: %s", sum)
+	} else {
+		log("⚠️  No checksum declared — skipping verification")
+	}
+
+	// The archive's own content hash, used as the provenance marker on every
+	// revision extracted from it. Independent of the declared checksum.
+	archiveHash, err := bucket.FileHash(archivePath)
+	if err != nil {
+		return 0, err
+	}
+
+	// Index the archive itself as a bucket file.
+	log("📁 Indexing source archive...")
+	archiveFilename := art.FileName
+	if archiveFilename == "" {
+		archiveFilename = path.Base(art.URL)
+	}
+	if archiveFilename == "" || archiveFilename == "." || archiveFilename == "/" {
+		archiveFilename = "archive_" + job.ID
+	}
+	if n, err := indexOneFile(ctx, archivePath, archiveFilename, job, dep, art, archiveHash, s, backend); err != nil {
+		log("⚠️  Could not index archive: %v", err)
+	} else {
+		log("  📦 %s [%s]", archiveFilename, n)
+	}
+
+	extractDir := filepath.Join(workDir, "extracted")
+	if err := os.MkdirAll(extractDir, 0755); err != nil {
+		return 0, err
+	}
+	log("📦 Extracting archive (recursive)...")
+	if err := bucket.ExtractAll(archivePath, extractDir, 4, log); err != nil {
+		return 0, err
+	}
+	log("✅ Extraction complete")
+
+	// Only the subtree named by component_root belongs to this component.
+	indexRoot, err := resolveComponentRoot(extractDir, art.ComponentRoot)
+	if err != nil {
+		log("⚠️  component_root %q unusable (%v) — indexing full extraction", art.ComponentRoot, err)
+		indexRoot = extractDir
+	} else if indexRoot != extractDir {
+		log("🗂️  Indexing files under component_root %q...", art.ComponentRoot)
+	}
+	if indexRoot == extractDir {
+		log("🗂️  Indexing files...")
+	}
+
+	return indexFiles(ctx, indexRoot, job, dep, art, archiveHash, s, backend, log)
+}
+
+// resolveComponentRoot resolves an artifact's component_root against the
+// extraction directory, rejecting paths that escape it or do not exist.
+func resolveComponentRoot(extractDir, componentRoot string) (string, error) {
+	trimmed := strings.TrimSpace(componentRoot)
+	if trimmed == "" || trimmed == "." || trimmed == "/" {
+		return extractDir, nil
+	}
+	target := filepath.Join(extractDir, filepath.Clean("/"+trimmed))
+	rel, err := filepath.Rel(extractDir, target)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path escapes extraction directory")
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("not a directory")
+	}
+	return target, nil
+}
+
+func indexFiles(ctx context.Context, dir string, job models.BuildJob, dep models.Dependency, art models.Artifact, archiveHash string, s *store.Store, backend bucket.Backend, log func(string, ...any)) (int, error) {
 	count := 0
 	err := filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err
 		}
-		action, err := indexOneFile(ctx, p, info.Name(), job, dep, archiveHash, s, backend)
+		action, err := indexOneFile(ctx, p, info.Name(), job, dep, art, archiveHash, s, backend)
 		if err != nil {
 			return err
 		}
@@ -126,7 +208,7 @@ func indexFiles(ctx context.Context, dir string, job models.BuildJob, dep models
 // indexOneFile stores a single file in the bucket and creates/updates its
 // BucketFile + FileRevision records. Returns a human-readable action string
 // ("new", "rev N", "skip – same hash") and any error.
-func indexOneFile(ctx context.Context, srcPath, filename string, job models.BuildJob, dep models.Dependency, archiveHash string, s *store.Store, backend bucket.Backend) (string, error) {
+func indexOneFile(ctx context.Context, srcPath, filename string, job models.BuildJob, dep models.Dependency, art models.Artifact, archiveHash string, s *store.Store, backend bucket.Backend) (string, error) {
 	info, err := os.Stat(srcPath)
 	if err != nil {
 		return "", err
@@ -172,16 +254,18 @@ func indexOneFile(ctx context.Context, srcPath, filename string, job models.Buil
 	}
 
 	rev, err := s.CreateRevision(ctx, models.FileRevision{
-		ID:          revID,
-		FileID:      fileID,
-		RevisionNum: revNum,
-		Hash:        fileHash,
-		SourceJobID: job.ID,
-		SourceDepID: dep.ID,
-		ArchiveURL:  dep.Manifest.URL,
-		ArchiveHash: archiveHash,
-		StoragePath: storagePath,
-		SizeBytes:   info.Size(),
+		ID:            revID,
+		FileID:        fileID,
+		RevisionNum:   revNum,
+		Hash:          fileHash,
+		SourceJobID:   job.ID,
+		SourceDepID:   dep.ID,
+		ArchiveURL:    art.URL,
+		ArchiveHash:   archiveHash,
+		Platform:      art.Platform.String(),
+		ComponentRoot: art.ComponentRoot,
+		StoragePath:   storagePath,
+		SizeBytes:     info.Size(),
 	})
 	if err != nil {
 		return "", err
