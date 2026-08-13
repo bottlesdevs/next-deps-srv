@@ -64,8 +64,9 @@ func (srv *Server) Handler(rl *middleware.RateLimiter) http.Handler {
 	mux.Handle("PUT /api/v1/auth/me", authMW(http.HandlerFunc(srv.updateMe)))
 	mux.Handle("POST /api/v1/auth/me/avatar", authMW(http.HandlerFunc(srv.uploadAvatar)))
 
-	// published catalog document (schema_version + items)
-	mux.Handle("GET /api/v1/catalog", rateMW(http.HandlerFunc(srv.catalog)))
+	// published catalog documents (schema_version + entries)
+	mux.Handle("GET /api/v1/catalog/components", rateMW(http.HandlerFunc(srv.componentCatalog)))
+	mux.Handle("GET /api/v1/catalog/dependencies", rateMW(http.HandlerFunc(srv.dependencyCatalog)))
 
 	// deps (public read, rate-limited)
 	mux.Handle("GET /api/v1/deps", rateMW(http.HandlerFunc(srv.listDeps)))

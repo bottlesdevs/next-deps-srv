@@ -11,22 +11,27 @@
     <div v-else>
       <div v-for="dep in pending" :key="dep.id" class="dep-card">
         <div class="dep-header">
-          <h3>{{ dep.item?.name }} <span class="ver">{{ dep.item?.version }}</span></h3>
+          <h3>{{ dep.entry?.name }} <span class="ver">{{ dep.entry?.version }}</span></h3>
           <Tag :value="dep.status" severity="warning" />
         </div>
         <div class="dep-info">
-          <p><b>Item ID:</b> <code>{{ dep.item?.id }}</code></p>
-          <p v-if="dep.item?.kind"><b>Kind:</b> {{ dep.item.kind.type }} / {{ dep.item.kind.flavour }}</p>
+          <p><b>Entry ID:</b> <code>{{ dep.entry?.id }}</code></p>
+          <p><b>Kind:</b> {{ dep.kind }}<span v-if="dep.entry?.slot"> · slot: {{ dep.entry.slot }}</span></p>
+          <p v-if="dep.entry?.requirements?.length"><b>Requires:</b>
+            <span v-for="(r, i) in dep.entry.requirements" :key="i">
+              {{ r.name || r.slot || r.id }}<span v-if="i < dep.entry.requirements.length - 1">, </span>
+            </span>
+          </p>
           <p><b>License:</b> {{ dep.license || '-' }}</p>
           <p><b>Submitted by:</b> {{ dep.submitted_by }}</p>
           <div class="artifacts">
-            <b>Artifacts ({{ dep.item?.artifacts?.length || 0 }}):</b>
-            <div v-for="(a, i) in dep.item?.artifacts || []" :key="i" class="artifact">
+            <b>Artifacts ({{ dep.entry?.artifacts?.length || 0 }}):</b>
+            <div v-for="(a, i) in dep.entry?.artifacts || []" :key="i" class="artifact">
               <a :href="a.url" target="_blank">{{ a.file_name }}</a>
               <span v-if="a.platform" class="tagline">{{ a.platform.os }}/{{ a.platform.arch }}</span>
-              <code v-if="a.checksum" class="sum">{{ a.checksum.algorithm }}:{{ a.checksum.value }}</code>
-              <span v-else class="warn">no checksum</span>
-              <span class="tagline">root: {{ a.component_root }}</span>
+              <span v-else class="tagline">any platform</span>
+              <code class="sum">{{ a.checksum.algorithm }}:{{ a.checksum.value }}</code>
+              <span v-if="a.steps?.length" class="tagline">{{ a.steps.length }} step(s)</span>
             </div>
           </div>
         </div>
@@ -67,7 +72,7 @@ async function load() {
 async function approve(dep) {
   try {
     await store.approveDep(dep.id)
-    toast.add({ severity: 'success', summary: 'Approved', detail: dep.item.name + ' approved', life: 3000 })
+    toast.add({ severity: 'success', summary: 'Approved', detail: dep.entry.name + ' approved', life: 3000 })
     await load()
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Failed', life: 3000 })
@@ -77,7 +82,7 @@ async function approve(dep) {
 async function reject(dep) {
   try {
     await store.rejectDep(dep.id, notes.value[dep.id] || '')
-    toast.add({ severity: 'info', summary: 'Rejected', detail: dep.item.name + ' rejected', life: 3000 })
+    toast.add({ severity: 'info', summary: 'Rejected', detail: dep.entry.name + ' rejected', life: 3000 })
     await load()
   } catch (e) {
     toast.add({ severity: 'error', summary: 'Error', detail: e.response?.data?.error || 'Failed', life: 3000 })

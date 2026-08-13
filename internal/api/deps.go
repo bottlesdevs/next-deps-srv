@@ -22,25 +22,39 @@ func (srv *Server) listDeps(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, paginate(deps, page, limit))
 }
 
-// catalog serves the published catalog document: schema_version plus every
-// built dependency's item. This is the endpoint consumers fetch.
-func (srv *Server) catalog(w http.ResponseWriter, r *http.Request) {
+func (srv *Server) componentCatalog(w http.ResponseWriter, r *http.Request) {
+	srv.serveCatalog(w, r, models.KindComponent)
+}
+
+func (srv *Server) dependencyCatalog(w http.ResponseWriter, r *http.Request) {
+	srv.serveCatalog(w, r, models.KindDependency)
+}
+
+// serveCatalog builds one published catalog document: schema_version plus the
+// entries of every built dependency of the requested kind. Components and
+// dependencies are served from separate endpoints because only component
+// entries carry a slot.
+func (srv *Server) serveCatalog(w http.ResponseWriter, r *http.Request, kind models.Kind) {
 	deps, err := srv.store.ListApprovedDeps(r.Context())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "store error"})
 		return
 	}
 	sort.Slice(deps, func(i, j int) bool { return deps[i].UpdatedAt.After(deps[j].UpdatedAt) })
-	doc := models.Catalog{SchemaVersion: models.SchemaVersion, Items: make([]models.Item, 0, len(deps))}
+
+	doc := models.Catalog{SchemaVersion: models.SchemaVersion, Entries: []models.CatalogEntry{}}
 	seen := make(map[string]struct{}, len(deps))
 	for _, d := range deps {
-		// items must be unique; the newest build of an id+version wins.
-		key := d.Item.ID + "\x00" + d.Item.Version
+		if d.Kind != kind {
+			continue
+		}
+		// One release per name+version; the newest build wins.
+		key := d.Entry.Name + "\x00" + d.Entry.Version
 		if _, dup := seen[key]; dup {
 			continue
 		}
 		seen[key] = struct{}{}
-		doc.Items = append(doc.Items, d.Item)
+		doc.Entries = append(doc.Entries, d.Entry.NormalizeForCatalog())
 	}
 	writeJSON(w, http.StatusOK, doc)
 }
@@ -55,13 +69,16 @@ func (srv *Server) getDep(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dep)
 }
 
-// submitDepBody is a catalog item plus the descriptive metadata the site
-// shows but the published catalog document does not carry.
+// submitDepBody is a catalog entry plus the kind that selects its catalog and
+// the descriptive metadata the site shows but the document does not carry.
+// The entry id is assigned by the server, so any client-supplied id is
+// ignored.
 type submitDepBody struct {
-	models.Item
-	Category    string `json:"category"`
-	Description string `json:"description"`
-	License     string `json:"license"`
+	models.CatalogEntry
+	Kind        models.Kind `json:"kind"`
+	Category    string      `json:"category"`
+	Description string      `json:"description"`
+	License     string      `json:"license"`
 }
 
 func (srv *Server) submitDep(w http.ResponseWriter, r *http.Request) {
@@ -71,19 +88,27 @@ func (srv *Server) submitDep(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
 		return
 	}
-	if err := body.Item.Validate(); err != nil {
+
+	// The entry id is the record's own uuid: the schema types it as a uuid and
+	// one catalog entry corresponds to exactly one record.
+	id := uuid.NewString()
+	entry := body.CatalogEntry
+	entry.ID = id
+
+	if err := entry.Validate(body.Kind); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 	dep, err := srv.store.CreateDep(r.Context(), models.Dependency{
-		ID:          uuid.NewString(),
-		Name:        body.Item.Name,
+		ID:          id,
+		Name:        entry.Name,
+		Kind:        body.Kind,
 		Category:    body.Category,
 		Description: body.Description,
 		License:     body.License,
 		Status:      "pending_review",
 		SubmittedBy: claims.UserID,
-		Item:        body.Item,
+		Entry:       entry,
 		CreatedAt:   time.Now(),
 	})
 	if err != nil {

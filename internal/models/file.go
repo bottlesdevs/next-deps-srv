@@ -20,12 +20,10 @@ type FileRevision struct {
 	SourceDepID string `json:"source_dep_id"`
 	ArchiveURL  string `json:"archive_url"`
 	ArchiveHash string `json:"archive_hash"`
-	// Platform ("os/arch") and ComponentRoot identify which artifact of the
-	// source item this revision came from. Empty when the artifact declared
-	// no platform.
-	Platform      string    `json:"platform,omitempty"`
-	ComponentRoot string    `json:"component_root,omitempty"`
-	StoragePath   string    `json:"storage_path"`
-	SizeBytes     int64     `json:"size_bytes"`
-	CreatedAt     time.Time `json:"created_at"`
+	// Platform ("os/arch") identifies which artifact of the source entry this
+	// revision came from. Empty when the artifact declared no platform.
+	Platform    string    `json:"platform,omitempty"`
+	StoragePath string    `json:"storage_path"`
+	SizeBytes   int64     `json:"size_bytes"`
+	CreatedAt   time.Time `json:"created_at"`
 }
