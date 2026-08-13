@@ -25,16 +25,18 @@ export const useDepsStore = defineStore('deps', () => {
     return data.items || []
   }
 
-  // item is a catalog item (id, name, version, kind, artifacts) plus the
-  // optional category/description/license metadata.
-  async function submitDep(item) {
-    const { data } = await api.post('/deps', item)
+  // entry is a catalog entry (name, version, artifacts, requirements and, for
+  // components, a slot) plus its kind and the category/description/license
+  // metadata. The server assigns the entry id.
+  async function submitDep(entry) {
+    const { data } = await api.post('/deps', entry)
     return data
   }
 
-  // The published catalog document: { schema_version, items }.
-  async function fetchCatalog() {
-    const { data } = await api.get('/catalog')
+  // A published catalog document: { schema_version, entries }.
+  // kind is 'components' or 'dependencies'.
+  async function fetchCatalog(kind = 'dependencies') {
+    const { data } = await api.get(`/catalog/${kind}`)
     return data
   }
 

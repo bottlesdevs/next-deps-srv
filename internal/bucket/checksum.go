@@ -1,8 +1,6 @@
 package bucket
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
@@ -10,19 +8,14 @@ import (
 	"hash"
 	"io"
 	"os"
-	"strings"
 )
 
 // HashFileWith hashes a file with the named algorithm and returns the digest
-// as lowercase hex. Supported algorithms match
-// models.SupportedChecksumAlgorithms.
+// as lowercase hex. Only the algorithms the catalog schema admits are
+// supported (see models.ChecksumAlgorithms).
 func HashFileWith(path, algorithm string) (string, error) {
 	var h hash.Hash
-	switch strings.ToLower(strings.TrimSpace(algorithm)) {
-	case "md5":
-		h = md5.New()
-	case "sha1":
-		h = sha1.New()
+	switch algorithm {
 	case "sha256":
 		h = sha256.New()
 	case "sha512":
@@ -42,8 +35,9 @@ func HashFileWith(path, algorithm string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// ChecksumEqual compares two digests case-insensitively, as hex digests are
-// commonly published in either case.
-func ChecksumEqual(a, b string) bool {
-	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
+// ChecksumEqual compares a computed digest with a declared one. The catalog
+// schema specifies an exact, case-sensitive comparison against a lowercase
+// hexadecimal digest, so this deliberately does not fold case.
+func ChecksumEqual(computed, declared string) bool {
+	return computed == declared
 }

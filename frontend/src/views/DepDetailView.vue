@@ -15,8 +15,9 @@
         <p class="page-subtitle" v-if="dep.description">{{ dep.description }}</p>
         <div class="dep-meta-row">
           <span class="dep-meta-chip" v-if="dep.license"><i class="pi pi-file"/>{{ dep.license }}</span>
-          <span class="dep-meta-chip" v-if="dep.item?.version"><i class="pi pi-tag"/>v{{ dep.item.version }}</span>
-          <span class="dep-meta-chip" v-if="dep.item?.kind"><i class="pi pi-box"/>{{ dep.item.kind.type }} / {{ dep.item.kind.flavour }}</span>
+          <span class="dep-meta-chip" v-if="dep.entry?.version"><i class="pi pi-tag"/>v{{ dep.entry.version }}</span>
+          <span class="dep-meta-chip" v-if="dep.kind"><i class="pi pi-box"/>{{ dep.kind }}</span>
+          <span class="dep-meta-chip" v-if="dep.entry?.slot"><i class="pi pi-sitemap"/>{{ dep.entry.slot }}</span>
           <span class="dep-meta-chip" v-for="p in platforms" :key="p"><i class="pi pi-desktop"/>{{ p }}</span>
         </div>
       </div>
@@ -28,15 +29,23 @@
         <div class="card-title">Artifacts</div>
         <div class="info-rows">
           <div class="info-row">
-            <span class="info-key">Item ID</span>
-            <code class="info-val mono">{{ dep.item?.id }}</code>
+            <span class="info-key">Entry ID</span>
+            <code class="info-val mono">{{ dep.entry?.id }}</code>
+          </div>
+          <div class="info-row" v-if="dep.entry?.requirements?.length">
+            <span class="info-key">Requirements</span>
+            <span class="info-val">
+              <span v-for="(r, i) in dep.entry.requirements" :key="i" class="req-chip">
+                {{ requirementLabel(r) }}
+              </span>
+            </span>
           </div>
         </div>
-        <div v-if="!dep.item?.artifacts?.length" class="empty">
+        <div v-if="!dep.entry?.artifacts?.length" class="empty">
           <i class="pi pi-box"/>No artifacts declared
         </div>
         <div v-else class="artifact-list">
-          <div v-for="(a, i) in dep.item.artifacts" :key="i" class="artifact-block">
+          <div v-for="(a, i) in dep.entry.artifacts" :key="i" class="artifact-block">
             <div class="artifact-head">
               <span class="artifact-name">{{ a.file_name }}</span>
               <span v-if="a.platform" class="artifact-plat">{{ a.platform.os }}/{{ a.platform.arch }}</span>
@@ -50,13 +59,9 @@
                 <span class="info-key">{{ a.checksum.algorithm }}</span>
                 <code class="info-val mono">{{ a.checksum.value }}</code>
               </div>
-              <div class="info-row" v-if="a.size">
-                <span class="info-key">Size</span>
-                <span class="info-val">{{ formatSize(a.size) }}</span>
-              </div>
-              <div class="info-row" v-if="a.component_root">
-                <span class="info-key">Component root</span>
-                <code class="info-val mono">{{ a.component_root }}</code>
+              <div class="info-row" v-if="a.steps?.length">
+                <span class="info-key">Steps</span>
+                <code class="info-val mono">{{ JSON.stringify(a.steps) }}</code>
               </div>
             </div>
           </div>
@@ -134,8 +139,15 @@ const files        = ref([])
 const fileSearch   = ref('')
 const fileDialog   = ref({ visible: false, name: '', revisions: [] })
 
+function requirementLabel(r) {
+  if (r.name) return `name: ${r.name}`
+  if (r.slot) return `slot: ${r.slot}`
+  if (r.id) return `id: ${r.id}`
+  return '?'
+}
+
 const platforms = computed(() => {
-  const seen = (dep.value?.item?.artifacts || [])
+  const seen = (dep.value?.entry?.artifacts || [])
     .filter(a => a.platform)
     .map(a => `${a.platform.os}/${a.platform.arch}`)
   return [...new Set(seen)]
@@ -234,6 +246,10 @@ onMounted(async () => {
 .artifact-block { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .75rem; }
 .artifact-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
 .artifact-name { font-size: .875rem; font-weight: 600; word-break: break-all; }
+.req-chip {
+  display: inline-block; background: var(--surface2); border-radius: 999px;
+  padding: .1rem .55rem; font-size: .72rem; margin-right: .35rem;
+}
 .artifact-plat {
   background: var(--surface2); border-radius: 999px; padding: .15rem .6rem;
   font-size: .7rem; color: var(--text-muted); flex-shrink: 0;

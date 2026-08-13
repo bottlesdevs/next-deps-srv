@@ -7,6 +7,7 @@ import (
 
 	"github.com/bottlesdevs/next-deps-srv/internal/models"
 	"github.com/bottlesdevs/next-deps-srv/internal/store"
+	"github.com/google/uuid"
 )
 
 func openStore(t *testing.T) *store.Store {
@@ -104,15 +105,18 @@ func TestDepCRUD(t *testing.T) {
 		Name:        "openssl",
 		Status:      "pending_review",
 		SubmittedBy: "user-1",
-		Item: models.Item{
-			ID:      "openssl",
+		Kind:        models.KindDependency,
+		Entry: models.CatalogEntry{
+			ID:      uuid.NewString(),
 			Name:    "openssl",
 			Version: "3.0.0",
-			Artifacts: []models.Artifact{{
-				URL:           "http://example.com/openssl.tar.gz",
-				FileName:      "openssl.tar.gz",
-				Size:          1024,
-				ComponentRoot: "openssl",
+			Artifacts: []models.CatalogArtifact{{
+				URL:      "http://example.com/openssl.tar.gz",
+				FileName: "openssl.tar.gz",
+				Checksum: models.Checksum{
+					Algorithm: "sha256",
+					Value:     "b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388",
+				},
 			}},
 		},
 	})

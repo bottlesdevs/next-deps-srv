@@ -187,7 +187,7 @@ func TestSubmitDepForbiddenForViewer(t *testing.T) {
 	})
 	tok, _ := auth.IssueToken(viewer, testSecret)
 
-	resp := do(t, ts, "POST", "/api/v1/deps", testItem("test"), tok)
+	resp := do(t, ts, "POST", "/api/v1/deps", testEntry("test"), tok)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("expected 403, got %d", resp.StatusCode)
 	}

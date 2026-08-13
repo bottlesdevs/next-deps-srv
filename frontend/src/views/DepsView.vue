@@ -49,13 +49,14 @@
         </div>
         <div class="dep-card-body">
           <div class="dep-card-name">{{ dep.name }}</div>
-          <div class="dep-card-ver">{{ dep.item?.version || '' }}</div>
+          <div class="dep-card-ver">{{ dep.entry?.version || '' }}</div>
           <div v-if="dep.description" class="dep-card-desc">{{ dep.description }}</div>
         </div>
         <div class="dep-card-footer">
           <span v-if="dep.license" class="dep-meta"><i class="pi pi-file"/>{{ dep.license }}</span>
-          <span v-if="dep.item?.kind" class="dep-meta"><i class="pi pi-box"/>{{ dep.item.kind.type }}</span>
-          <span v-if="dep.item?.artifacts?.length" class="dep-meta"><i class="pi pi-desktop"/>{{ dep.item.artifacts.length }} artifact{{ dep.item.artifacts.length === 1 ? '' : 's' }}</span>
+          <span v-if="dep.kind" class="dep-meta"><i class="pi pi-box"/>{{ dep.kind }}</span>
+          <span v-if="dep.entry?.slot" class="dep-meta"><i class="pi pi-sitemap"/>{{ dep.entry.slot }}</span>
+          <span v-if="dep.entry?.artifacts?.length" class="dep-meta"><i class="pi pi-desktop"/>{{ dep.entry.artifacts.length }} artifact{{ dep.entry.artifacts.length === 1 ? '' : 's' }}</span>
           <i class="pi pi-arrow-right dep-arrow"/>
         </div>
       </RouterLink>
