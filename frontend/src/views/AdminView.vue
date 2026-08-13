@@ -45,7 +45,7 @@
       <div class="card">
         <div class="card-title">Recent Activity</div>
         <div v-if="!audit.length" class="empty"><i class="pi pi-list"/>No activity yet</div>
-        <table v-else class="data-table">
+        <div v-else class="table-wrap"><table class="data-table">
           <thead>
             <tr>
               <th>Time</th>
@@ -62,7 +62,7 @@
               <td class="td-muted">{{ row.target }}</td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <!-- Config panel -->

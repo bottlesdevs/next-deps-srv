@@ -50,15 +50,15 @@ async function deletePost() {
 </script>
 
 <style scoped>
-.post-card { background: #fff; border-radius: 10px; padding: 1rem 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+.post-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; box-shadow: var(--shadow); }
 .post-card:not(.no-click):hover { box-shadow: 0 3px 8px rgba(0,0,0,.12); }
 .post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .5rem; }
 .author { display: flex; align-items: center; gap: .5rem; }
 .avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-.avatar-ph { width: 28px; height: 28px; border-radius: 50%; background: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; color: #fff; }
+.avatar-ph { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; color: #fff; }
 .username { font-weight: 600; font-size: .875rem; }
-.date { font-size: .75rem; color: #94a3b8; }
-.body { font-size: .9rem; color: #374151; line-height: 1.5; margin-bottom: .5rem; white-space: pre-wrap; }
+.date { font-size: .75rem; color: var(--text-muted); }
+.body { font-size: .9rem; color: var(--text); line-height: 1.5; margin-bottom: .5rem; white-space: pre-wrap; }
 .post-footer { display: flex; align-items: center; gap: 1rem; }
-.replies-count { font-size: .8rem; color: #94a3b8; display: flex; align-items: center; gap: .25rem; }
+.replies-count { font-size: .8rem; color: var(--text-muted); display: flex; align-items: center; gap: .25rem; }
 </style>

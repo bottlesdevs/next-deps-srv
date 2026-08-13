@@ -221,17 +221,18 @@ async function submit() {
 
 <style scoped>
 .field { margin-bottom: 1rem; display: flex; flex-direction: column; gap: .35rem; flex: 1; min-width: 0; }
-.row { display: flex; gap: .75rem; }
-.error { color: #dc2626; margin-bottom: .75rem; font-size: .875rem; }
-.err { color: #dc2626; font-size: .75rem; }
-.hint { color: var(--text-faint, #9ca3af); font-weight: 400; }
+.row { display: flex; gap: .75rem; flex-wrap: wrap; }
+.row > .field { flex: 1 1 180px; }
+.error { color: var(--danger); margin-bottom: .75rem; font-size: .875rem; }
+.err { color: var(--danger); font-size: .75rem; }
+.hint { color: var(--text-faint); font-weight: 400; }
 .actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1rem; }
 .repeatable { margin-bottom: 1rem; }
 .repeatable-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
-.block { border: 1px solid var(--border, #e5e7eb); border-radius: 8px; padding: .875rem; margin-bottom: .75rem; }
+.block { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .875rem; margin-bottom: .75rem; }
 .block-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
-.block-num { font-size: .75rem; font-weight: 600; color: var(--text-faint, #9ca3af); }
-.req-row { display: flex; gap: .5rem; align-items: center; margin-bottom: .5rem; }
-.req-row > :nth-child(2) { flex: 1; }
-:deep(.invalid) { border-color: #dc2626 !important; }
+.block-num { font-size: .75rem; font-weight: 600; color: var(--text-faint); }
+.req-row { display: flex; gap: .5rem; align-items: center; margin-bottom: .5rem; flex-wrap: wrap; }
+.req-row > :nth-child(2) { flex: 1 1 200px; }
+:deep(.invalid) { border-color: var(--danger) !important; }
 </style>

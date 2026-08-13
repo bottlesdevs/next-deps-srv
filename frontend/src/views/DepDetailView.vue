@@ -213,7 +213,8 @@ onMounted(async () => {
 .back-btn:hover { color: var(--text); background: var(--surface2); }
 
 /* Hero */
-.dep-hero { display: flex; align-items: flex-start; gap: 1.25rem; margin-bottom: 2rem; }
+.dep-hero { display: flex; align-items: flex-start; gap: 1.25rem; margin-bottom: 2rem; flex-wrap: wrap; }
+.dep-hero-info { min-width: 0; flex: 1; }
 .dep-hero-icon {
   width: 56px; height: 56px; border-radius: var(--radius);
   background: linear-gradient(135deg, var(--primary-bg), rgba(88,166,255,.3));
@@ -231,7 +232,7 @@ onMounted(async () => {
 .dep-meta-chip i { font-size: .7rem; }
 
 /* Detail grid */
-.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 1.25rem; }
 
 /* Info rows */
 .info-rows { display: flex; flex-direction: column; gap: .75rem; }
