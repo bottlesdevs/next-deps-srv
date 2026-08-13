@@ -34,6 +34,10 @@
       <div class="card form-card">
         <h4>Change password</h4>
         <div class="field">
+          <label>Current password</label>
+          <Password v-model="pw.current" toggleMask :feedback="false" class="w-full" />
+        </div>
+        <div class="field">
           <label>New password</label>
           <Password v-model="pw.new" toggleMask class="w-full" />
         </div>
@@ -41,7 +45,12 @@
           <label>Confirm</label>
           <Password v-model="pw.confirm" toggleMask :feedback="false" class="w-full" />
         </div>
-        <Button label="Update password" @click="changePassword" :disabled="!pw.new || pw.new !== pw.confirm" />
+        <Button
+          label="Update password"
+          @click="changePassword"
+          :loading="changingPassword"
+          :disabled="!pw.current || pw.new.length < 8 || pw.new !== pw.confirm"
+        />
       </div>
     </div>
   </div>
@@ -60,9 +69,10 @@ const auth = useAuthStore()
 const toast = useToast()
 const fileInput = ref()
 const saving = ref(false)
+const changingPassword = ref(false)
 const ts = ref(Date.now())
 const form = reactive({ username: '', email: '', website: '' })
-const pw = reactive({ new: '', confirm: '' })
+const pw = reactive({ current: '', new: '', confirm: '' })
 
 onMounted(() => {
   if (auth.user) {
@@ -84,10 +94,19 @@ async function saveProfile() {
 }
 
 async function changePassword() {
-  await api.put('/auth/me', { password: pw.new })
-  pw.new = ''
-  pw.confirm = ''
-  toast.add({ severity: 'success', summary: 'Password updated', life: 2000 })
+  changingPassword.value = true
+  try {
+    await api.put('/auth/me/password', {
+      current_password: pw.current,
+      new_password: pw.new,
+    })
+    Object.assign(pw, { current: '', new: '', confirm: '' })
+    toast.add({ severity: 'success', summary: 'Password updated', life: 2000 })
+  } catch (e) {
+    toast.add({ severity: 'error', summary: e.response?.data?.error || 'Password update failed', life: 3000 })
+  } finally {
+    changingPassword.value = false
+  }
 }
 
 async function uploadAvatar(e) {

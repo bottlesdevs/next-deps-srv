@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/bottlesdevs/next-deps-srv/internal/auth"
 	"github.com/bottlesdevs/next-deps-srv/internal/middleware"
@@ -128,6 +130,64 @@ func (srv *Server) updateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, safeUser(user))
+}
+
+func (srv *Server) changePassword(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFrom(r)
+	if claims == nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	var body struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 4096)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
+		return
+	}
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
+		return
+	}
+	if body.CurrentPassword == "" || body.NewPassword == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "current and new password required"})
+		return
+	}
+	if utf8.RuneCountInString(body.NewPassword) < 8 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "new password must be at least 8 characters"})
+		return
+	}
+	if len(body.NewPassword) > 72 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "new password is too long"})
+		return
+	}
+
+	user, err := srv.store.GetUser(r.Context(), claims.UserID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
+		return
+	}
+	if !auth.CheckPassword(user.PasswordHash, body.CurrentPassword) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "current password is incorrect"})
+		return
+	}
+	hash, err := auth.HashPassword(body.NewPassword)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "update failed"})
+		return
+	}
+	user.PasswordHash = hash
+	if err := srv.store.UpdateUser(r.Context(), user); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "update failed"})
+		return
+	}
+	logAudit(r.Context(), srv.store, claims.UserID, claims.Username, "change_password", user.ID, "", ipFrom(r))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (srv *Server) uploadAvatar(w http.ResponseWriter, r *http.Request) {

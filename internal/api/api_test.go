@@ -141,6 +141,97 @@ func TestGetMeUnauthorized(t *testing.T) {
 	}
 }
 
+func TestChangePassword(t *testing.T) {
+	ts, s := setup(t)
+	tok := createAdminToken(t, s)
+
+	resp := do(t, ts, "PUT", "/api/v1/auth/me/password", map[string]string{
+		"current_password": "password",
+		"new_password":     "new-password",
+	}, tok)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("changePassword: got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	resp = do(t, ts, "POST", "/api/v1/auth/login", map[string]string{
+		"username": "admin",
+		"password": "password",
+	}, "")
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("old password: expected 401, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	resp = do(t, ts, "POST", "/api/v1/auth/login", map[string]string{
+		"username": "admin",
+		"password": "new-password",
+	}, "")
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("new password: expected 200, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestChangePasswordWrongCurrentPassword(t *testing.T) {
+	ts, s := setup(t)
+	tok := createAdminToken(t, s)
+
+	resp := do(t, ts, "PUT", "/api/v1/auth/me/password", map[string]string{
+		"current_password": "wrong-password",
+		"new_password":     "new-password",
+	}, tok)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	resp = do(t, ts, "POST", "/api/v1/auth/login", map[string]string{
+		"username": "admin",
+		"password": "password",
+	}, "")
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("original password: expected 200, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestChangePasswordRejectsInvalidRequest(t *testing.T) {
+	ts, s := setup(t)
+	tok := createAdminToken(t, s)
+
+	resp := do(t, ts, "PUT", "/api/v1/auth/me/password", map[string]string{
+		"current_password": "password",
+		"new_password":     "short",
+	}, tok)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("short password: expected 400, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	resp = do(t, ts, "PUT", "/api/v1/auth/me/password", map[string]string{
+		"current_password": "password",
+		"new_password":     "new-password",
+		"password":         "unexpected",
+	}, tok)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("unknown field: expected 400, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestChangePasswordUnauthorized(t *testing.T) {
+	ts, _ := setup(t)
+	resp := do(t, ts, "PUT", "/api/v1/auth/me/password", map[string]string{
+		"current_password": "password",
+		"new_password":     "new-password",
+	}, "")
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
 func TestListDepsEmpty(t *testing.T) {
 	ts, _ := setup(t)
 	resp := do(t, ts, "GET", "/api/v1/deps", nil, "")

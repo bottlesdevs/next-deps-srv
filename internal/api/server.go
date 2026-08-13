@@ -62,6 +62,7 @@ func (srv *Server) Handler(rl *middleware.RateLimiter) http.Handler {
 	mux.Handle("POST /api/v1/auth/register", http.HandlerFunc(srv.register))
 	mux.Handle("GET /api/v1/auth/me", authMW(http.HandlerFunc(srv.getMe)))
 	mux.Handle("PUT /api/v1/auth/me", authMW(http.HandlerFunc(srv.updateMe)))
+	mux.Handle("PUT /api/v1/auth/me/password", authMW(http.HandlerFunc(srv.changePassword)))
 	mux.Handle("POST /api/v1/auth/me/avatar", authMW(http.HandlerFunc(srv.uploadAvatar)))
 
 	// published catalog documents (schema_version + entries)
