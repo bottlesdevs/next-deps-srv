@@ -308,6 +308,8 @@ func TestDepFiles_ListsIndexedFiles(t *testing.T) {
 		Items []struct {
 			Name          string `json:"name"`
 			RevisionCount int    `json:"revision_count"`
+			LatestRevID   string `json:"latest_rev_id"`
+			DownloadURL   string `json:"download_url"`
 		} `json:"items"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
@@ -321,6 +323,12 @@ func TestDepFiles_ListsIndexedFiles(t *testing.T) {
 	}
 	if out.Items[0].RevisionCount != 2 {
 		t.Errorf("expected 2 revisions from this dep, got %d", out.Items[0].RevisionCount)
+	}
+	if out.Items[0].LatestRevID == "" {
+		t.Error("expected latest revision from this dependency")
+	}
+	if out.Items[0].DownloadURL != "/api/v1/files/download/"+out.Items[0].LatestRevID {
+		t.Errorf("unexpected download URL %q", out.Items[0].DownloadURL)
 	}
 }
 

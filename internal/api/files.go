@@ -74,8 +74,10 @@ func (srv *Server) depFiles(w http.ResponseWriter, r *http.Request) {
 		Name          string `json:"name"`
 		RevisionCount int    `json:"revision_count"`
 		LatestRevID   string `json:"latest_rev_id"`
+		DownloadURL   string `json:"download_url"`
 		SizeBytes     int64  `json:"size_bytes"`
 		Platform      string `json:"platform,omitempty"`
+		RevisionNum   int    `json:"-"`
 	}
 
 	byFile := make(map[string]*fileOut)
@@ -87,16 +89,16 @@ func (srv *Server) depFiles(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				continue // revision outlived its file record
 			}
-			out = &fileOut{ID: file.ID, Name: file.Name, LatestRevID: file.LatestRevID}
+			out = &fileOut{ID: file.ID, Name: file.Name}
 			byFile[rev.FileID] = out
 			order = append(order, rev.FileID)
 		}
 		out.RevisionCount++
-		// Report the newest revision this dependency contributed.
-		if rev.SizeBytes > 0 && out.SizeBytes == 0 {
+		if rev.RevisionNum >= out.RevisionNum {
+			out.RevisionNum = rev.RevisionNum
+			out.LatestRevID = rev.ID
+			out.DownloadURL = fmt.Sprintf("/api/v1/files/download/%s", rev.ID)
 			out.SizeBytes = rev.SizeBytes
-		}
-		if out.Platform == "" {
 			out.Platform = rev.Platform
 		}
 	}
