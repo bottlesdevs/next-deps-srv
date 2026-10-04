@@ -78,7 +78,7 @@ type Dependency struct {
 }
 
 // Catalog is one published catalog document. The component and dependency
-// catalogs share this shape; only component entries carry a slot.
+// catalogs share this shape; each published entry carries its addon kind.
 type Catalog struct {
 	SchemaVersion int            `json:"schema_version"`
 	Entries       []CatalogEntry `json:"entries"`
@@ -86,7 +86,8 @@ type Catalog struct {
 
 // CatalogEntry is a release advertised by the catalog.
 type CatalogEntry struct {
-	ID           string            `json:"id"` // uuid
+	Kind         Kind              `json:"kind,omitempty"` // populated for public catalogs
+	ID           string            `json:"id"`             // uuid
 	Name         string            `json:"name"`
 	Version      string            `json:"version"`
 	Artifacts    []CatalogArtifact `json:"artifacts"`

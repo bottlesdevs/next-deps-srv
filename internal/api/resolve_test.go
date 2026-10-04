@@ -74,6 +74,9 @@ func TestResolve_OrdersRequirementsAndFiltersPlatform(t *testing.T) {
 	if len(out.Entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d", len(out.Entries))
 	}
+	if out.Entries[0].Kind != models.KindDependency || out.Entries[1].Kind != models.Kind("dxvk") {
+		t.Errorf("resolved entries must use flat addon kinds, got %+v", out.Entries)
+	}
 	if out.Entries[0].Name != "vcredist" || out.Entries[1].Name != "dxvk" {
 		t.Errorf("requirements must precede roots, got %s then %s", out.Entries[0].Name, out.Entries[1].Name)
 	}

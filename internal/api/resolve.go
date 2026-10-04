@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 
@@ -24,15 +25,10 @@ type resolveRequest struct {
 	Platform     *models.Target    `json:"platform,omitempty"`
 }
 
-type resolvedEntry struct {
-	Kind models.Kind `json:"kind"`
-	models.CatalogEntry
-}
-
 type resolveResponse struct {
-	SchemaVersion int             `json:"schema_version"`
-	Platform      *models.Target  `json:"platform,omitempty"`
-	Entries       []resolvedEntry `json:"entries"`
+	SchemaVersion int                   `json:"schema_version"`
+	Platform      *models.Target        `json:"platform,omitempty"`
+	Entries       []models.CatalogEntry `json:"entries"`
 }
 
 type downloadSource struct {
@@ -201,7 +197,7 @@ func (srv *Server) resolveCatalog(r *http.Request, req resolveRequest) (resolveR
 	out := resolveResponse{
 		SchemaVersion: models.SchemaVersion,
 		Platform:      req.Platform,
-		Entries:       []resolvedEntry{},
+		Entries:       []models.CatalogEntry{},
 	}
 	state := make(map[string]uint8)
 	var visit func(models.Dependency) error
@@ -223,11 +219,15 @@ func (srv *Server) resolveCatalog(r *http.Request, req resolveRequest) (resolveR
 			}
 		}
 
-		entry, err := entryForPlatform(dep.Entry, req.Platform)
+		entry, err := resolver.publishedEntry(dep)
 		if err != nil {
 			return err
 		}
-		out.Entries = append(out.Entries, resolvedEntry{Kind: dep.Kind, CatalogEntry: entry})
+		entry, err = entryForPlatform(entry, req.Platform)
+		if err != nil {
+			return err
+		}
+		out.Entries = append(out.Entries, entry)
 		state[dep.ID] = 2
 		return nil
 	}
@@ -288,6 +288,34 @@ func (r catalogResolver) selectRequirement(requirement models.Requirement) (mode
 		}
 	}
 	return models.Dependency{}, false
+}
+
+// publishedEntry expresses registry roles as the flat addon kinds used by core.
+func (r catalogResolver) publishedEntry(dep models.Dependency) (models.CatalogEntry, error) {
+	entry := dep.Entry.NormalizeForCatalog()
+	entry.Kind = dep.Kind
+	if dep.Kind == models.KindComponent {
+		if entry.Slot == nil || !slices.Contains(models.Slots, *entry.Slot) {
+			return models.CatalogEntry{}, fmt.Errorf("missing or invalid slot for %s", entry.Name)
+		}
+		entry.Kind = models.Kind(*entry.Slot)
+		entry.Slot = nil
+	}
+	entry.Requirements = append([]models.Requirement(nil), entry.Requirements...)
+	for i, requirement := range entry.Requirements {
+		if requirement.Slot == nil {
+			continue
+		}
+		switch *requirement.Slot {
+		case models.SlotRunner, models.SlotWinebridge, models.SlotUmu:
+			required, ok := r.selectRequirement(requirement)
+			if !ok {
+				return models.CatalogEntry{}, fmt.Errorf("runtime requirement not found for %s: %s", entry.Name, requirementLabel(requirement))
+			}
+			entry.Requirements[i] = models.Requirement{ID: required.Entry.ID}
+		}
+	}
+	return entry, nil
 }
 
 func entryForPlatform(entry models.CatalogEntry, target *models.Target) (models.CatalogEntry, error) {

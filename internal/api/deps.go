@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/bottlesdevs/next-deps-srv/internal/middleware"
@@ -31,30 +30,26 @@ func (srv *Server) dependencyCatalog(w http.ResponseWriter, r *http.Request) {
 }
 
 // serveCatalog builds one published catalog document: schema_version plus the
-// entries of every built dependency of the requested kind. Components and
-// dependencies are served from separate endpoints because only component
-// entries carry a slot.
+// entries of every built dependency of the requested registry category.
+// Published entries carry their specific addon kind rather than a registry slot.
 func (srv *Server) serveCatalog(w http.ResponseWriter, r *http.Request, kind models.Kind) {
 	deps, err := srv.store.ListApprovedDeps(r.Context())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "store error"})
 		return
 	}
-	sort.Slice(deps, func(i, j int) bool { return deps[i].UpdatedAt.After(deps[j].UpdatedAt) })
-
+	resolver := newCatalogResolver(deps)
 	doc := models.Catalog{SchemaVersion: models.SchemaVersion, Entries: []models.CatalogEntry{}}
-	seen := make(map[string]struct{}, len(deps))
-	for _, d := range deps {
+	for _, d := range resolver.deps {
 		if d.Kind != kind {
 			continue
 		}
-		// One release per name+version; the newest build wins.
-		key := d.Entry.Name + "\x00" + d.Entry.Version
-		if _, dup := seen[key]; dup {
-			continue
+		entry, err := resolver.publishedEntry(d)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
 		}
-		seen[key] = struct{}{}
-		doc.Entries = append(doc.Entries, d.Entry.NormalizeForCatalog())
+		doc.Entries = append(doc.Entries, entry)
 	}
 	writeJSON(w, http.StatusOK, doc)
 }

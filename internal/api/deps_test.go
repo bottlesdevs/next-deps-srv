@@ -160,18 +160,25 @@ func TestCatalog_SeparatesComponentsFromDependencies(t *testing.T) {
 	ts, s := setup(t)
 	ctx := context.Background()
 
-	slot := models.SlotRunner
-	comp := testComponent("wine", slot).CatalogEntry
-	comp.ID = uuid.NewString()
-	if _, err := s.CreateDep(ctx, models.Dependency{
-		ID: comp.ID, Name: "wine", Kind: models.KindComponent,
-		Status: "built", SubmittedBy: "user-1", Entry: comp,
-	}); err != nil {
-		t.Fatal(err)
+	var runnerID string
+	for _, slot := range models.Slots {
+		entry := testComponent(string(slot), slot).CatalogEntry
+		entry.ID = uuid.NewString()
+		if _, err := s.CreateDep(ctx, models.Dependency{
+			ID: entry.ID, Name: entry.Name, Kind: models.KindComponent,
+			Status: "built", SubmittedBy: "user-1", Entry: entry,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if slot == models.SlotRunner {
+			runnerID = entry.ID
+		}
 	}
 
 	depEntry := testEntry("zlib").CatalogEntry
 	depEntry.ID = uuid.NewString()
+	slot := models.SlotRunner
+	depEntry.Requirements = []models.Requirement{{Slot: &slot}}
 	if _, err := s.CreateDep(ctx, models.Dependency{
 		ID: depEntry.ID, Name: "zlib", Kind: models.KindDependency,
 		Status: "built", SubmittedBy: "user-1", Entry: depEntry,
@@ -189,7 +196,7 @@ func TestCatalog_SeparatesComponentsFromDependencies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fetch := func(path string, kind models.Kind) models.Catalog {
+	fetch := func(path string) models.Catalog {
 		t.Helper()
 		resp, err := http.Get(ts.URL + path)
 		if err != nil {
@@ -207,27 +214,32 @@ func TestCatalog_SeparatesComponentsFromDependencies(t *testing.T) {
 			t.Errorf("%s: expected schema_version %d, got %d", path, models.SchemaVersion, doc.SchemaVersion)
 		}
 		for _, e := range doc.Entries {
-			if err := e.Validate(kind); err != nil {
-				t.Errorf("%s: published entry is not schema-valid: %v", path, err)
+			if e.Kind == "" || e.Slot != nil {
+				t.Errorf("%s: entry must carry kind without slot: %+v", path, e)
 			}
 		}
 		return doc
 	}
 
-	comps := fetch("/api/v1/catalog/components", models.KindComponent)
-	if len(comps.Entries) != 1 || comps.Entries[0].Name != "wine" {
-		t.Fatalf("expected only the component, got %+v", comps.Entries)
+	comps := fetch("/api/v1/catalog/components")
+	if len(comps.Entries) != len(models.Slots) {
+		t.Fatalf("expected every runtime/component role, got %+v", comps.Entries)
 	}
-	if comps.Entries[0].Slot == nil || *comps.Entries[0].Slot != models.SlotRunner {
-		t.Error("component entry lost its slot")
+	for _, entry := range comps.Entries {
+		if string(entry.Kind) != entry.Name {
+			t.Errorf("wrong published kind: %+v", entry)
+		}
 	}
 
-	deps := fetch("/api/v1/catalog/dependencies", models.KindDependency)
+	deps := fetch("/api/v1/catalog/dependencies")
 	if len(deps.Entries) != 1 || deps.Entries[0].Name != "zlib" {
 		t.Fatalf("expected only the built dependency, got %+v", deps.Entries)
 	}
-	if deps.Entries[0].Slot != nil {
-		t.Error("dependency entry must not carry a slot")
+	if deps.Entries[0].Kind != models.KindDependency {
+		t.Error("dependency entry must carry kind dependency")
+	}
+	if len(deps.Entries[0].Requirements) != 1 || deps.Entries[0].Requirements[0].ID != runnerID {
+		t.Error("runtime slot requirements must be published as release IDs")
 	}
 }
 

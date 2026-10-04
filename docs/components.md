@@ -1,6 +1,6 @@
 # Components
 
-A component is an add-on that occupies one named slot in a bottle. The slot makes component roles mutually exclusive. A bottle can select one runner for its `runner` slot, one DXVK implementation for its `dxvk` slot, and so on.
+The registry’s component category includes runtime tools and graphics add-ons. Submissions select a role using `slot`; published entries expose that role as a single `kind`, such as `runner` or `dxvk`. In core, only graphics add-ons occupy component slots.
 
 Components are published at:
 
@@ -84,7 +84,7 @@ After approval and a successful build, the public component catalog contains an 
   "id": "7c478786-c11f-4f31-b18c-87063ec72f3d",
   "name": "dxvk",
   "version": "2.6.1",
-  "slot": "dxvk",
+  "kind": "dxvk",
   "artifacts": [
     {
       "url": "https://downloads.example.com/dxvk-2.6.1-x86_64.tar.xz",
@@ -101,12 +101,14 @@ After approval and a successful build, the public component catalog contains an 
     }
   ],
   "requirements": [
-    { "slot": "runner" }
+    { "id": "8f2e04af-35d6-4b3c-9cae-5f5ba878ba4b" }
   ]
 }
 ```
 
 Site metadata such as category, description, and license is not included in the catalog document.
+
+Runtime slot requirements from submissions are published as the UUID of the selected built runtime release. Graphics slot requirements remain unchanged.
 
 ## Component requirements
 
@@ -139,7 +141,7 @@ Send this body to `POST /api/v1/resolve` for the ordered entry graph or `POST /a
 For local resolution, a client should:
 
 1. Read the component catalog.
-2. Find candidates with the requested slot.
+2. Find candidates with the requested addon `kind`.
 3. Choose one version using its own policy.
 4. Resolve the selected entry's requirements.
 5. Select artifacts matching the target OS and architecture.
