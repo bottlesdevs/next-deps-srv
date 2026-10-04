@@ -12,8 +12,8 @@ https://bottles-next-deps.bromb.in/api/v1
 
 | Method | Path | Response |
 | --- | --- | --- |
-| `GET` | `/catalog/components` | Component entries with required slots. |
-| `GET` | `/catalog/dependencies` | Dependency entries without slots. |
+| `GET` | `/catalog/components` | Runtime and graphics entries with specific addon kinds. |
+| `GET` | `/catalog/dependencies` | Entries with `kind: dependency`. |
 | `POST` | `/resolve` | Ordered component and dependency graph. |
 | `POST` | `/download-batch` | Flattened, deduplicated artifacts for a resolved graph. |
 | `GET` | `/deps/{id}/files` | Indexed files produced by one entry. |
@@ -33,6 +33,7 @@ Both catalogs use this envelope:
     {
       "id": "7c478786-c11f-4f31-b18c-87063ec72f3d",
       "name": "example-package",
+      "kind": "dependency",
       "version": "1.0.0",
       "artifacts": [
         {
@@ -64,9 +65,11 @@ Clients must check `schema_version` before parsing entries. Version `1` is the o
 | `id` | UUID string | Server-assigned identity for one published release. |
 | `name` | string | Package name. |
 | `version` | string | Opaque version value. |
-| `slot` | string | Component role. Present only in the component catalog. |
+| `kind` | string | Addon role: `runner`, `winebridge`, `umu`, `dxvk`, `vkd3d`, `nvapi`, `latency-flex`, or `dependency`. |
 | `artifacts` | array | Download candidates and their verification data. |
 | `requirements` | array | Optional references to other catalog entries. |
+
+Published entries use one `kind` discriminator and do not carry a top-level `slot`. Submission records still use the registry category (`component` or `dependency`) and a role selector. The server converts those records when publishing catalogs and resolved entries.
 
 The server publishes at most one entry for each `name` and `version` pair in each catalog. If multiple built records share the same pair, the most recently updated record wins. Clients must not use array order as a version preference.
 
@@ -101,6 +104,8 @@ A requirement contains exactly one of these keys:
 | `id` | Both catalogs | Match the exact entry UUID. |
 | `name` | Both catalogs | Select the most recently updated built match. |
 | `slot` | Component catalog | Select the most recently updated built component in that slot. |
+
+Graphics slot requirements remain slot selectors. Runtime-role requirements (`runner`, `winebridge`, and `umu`) are published as the selected built release UUID, because runtime tools do not occupy component slots in core. A missing runtime requirement prevents publication.
 
 The public resolver accepts root selectors and expands their requirements recursively:
 
@@ -157,11 +162,10 @@ Example response:
       ]
     },
     {
-      "kind": "component",
+      "kind": "dxvk",
       "id": "7c478786-c11f-4f31-b18c-87063ec72f3d",
       "name": "dxvk",
       "version": "2.6.1",
-      "slot": "dxvk",
       "artifacts": [
         {
           "url": "https://downloads.example.com/dxvk-2.6.1.tar.xz",

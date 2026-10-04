@@ -61,6 +61,7 @@ After approval and a successful build, the public dependency catalog contains an
 ```json
 {
   "id": "07f294e7-bbeb-47af-b24d-860f09cff325",
+  "kind": "dependency",
   "name": "vcredist-2022",
   "version": "14.40.33810",
   "artifacts": [
