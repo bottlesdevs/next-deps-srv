@@ -2,46 +2,28 @@ package models
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/google/uuid"
 )
 
-func validKind(k Kind) bool {
-	for _, v := range Kinds {
-		if k == v {
-			return true
-		}
+func names[T ~string](values []T) string {
+	out := make([]string, len(values))
+	for i, v := range values {
+		out[i] = string(v)
 	}
-	return false
+	return strings.Join(out, ", ")
 }
 
-func validSlot(s Slot) bool {
-	for _, v := range Slots {
-		if s == v {
-			return true
-		}
-	}
-	return false
-}
-
-func slotNames() string {
-	names := make([]string, len(Slots))
-	for i, s := range Slots {
-		names[i] = string(s)
-	}
-	return strings.Join(names, ", ")
-}
-
-// Validate reports whether the entry satisfies the catalog schema for the
-// given kind. Component entries must carry a slot; dependency entries must
-// not.
+// Validate reports whether the entry satisfies the catalog schema. Components
+// must carry a slot and runners a flavor; no other kind may carry either.
 //
 // Beyond the schema, the server requires at least one artifact: an entry with
 // none has nothing to build or serve.
-func (e CatalogEntry) Validate(kind Kind) error {
-	if !validKind(kind) {
-		return fmt.Errorf("kind must be one of component, dependency")
+func (e CatalogEntry) Validate() error {
+	if !slices.Contains(Kinds, e.Kind) {
+		return fmt.Errorf("kind must be one of %s", names(Kinds))
 	}
 	if _, err := uuid.Parse(strings.TrimSpace(e.ID)); err != nil {
 		return fmt.Errorf("id must be a uuid")
@@ -53,18 +35,19 @@ func (e CatalogEntry) Validate(kind Kind) error {
 		return fmt.Errorf("version is required")
 	}
 
-	switch kind {
-	case KindComponent:
-		if e.Slot == nil {
-			return fmt.Errorf("slot is required for components (one of %s)", slotNames())
+	if e.Kind == KindComponent {
+		if e.Slot == nil || !slices.Contains(Slots, *e.Slot) {
+			return fmt.Errorf("slot is required for components (one of %s)", names(Slots))
 		}
-		if !validSlot(*e.Slot) {
-			return fmt.Errorf("unknown slot %q (want one of %s)", *e.Slot, slotNames())
+	} else if e.Slot != nil {
+		return fmt.Errorf("slot is only valid for components")
+	}
+	if e.Kind == KindRunner {
+		if e.Flavor == nil || !slices.Contains(Flavors, *e.Flavor) {
+			return fmt.Errorf("flavor is required for runners (one of %s)", names(Flavors))
 		}
-	case KindDependency:
-		if e.Slot != nil {
-			return fmt.Errorf("slot is only valid for components")
-		}
+	} else if e.Flavor != nil {
+		return fmt.Errorf("flavor is only valid for runners")
 	}
 
 	if len(e.Artifacts) == 0 {
@@ -174,8 +157,8 @@ func (r Requirement) Validate() error {
 	}
 	if r.Slot != nil {
 		set++
-		if !validSlot(*r.Slot) {
-			return fmt.Errorf("unknown slot %q (want one of %s)", *r.Slot, slotNames())
+		if !slices.Contains(Slots, *r.Slot) {
+			return fmt.Errorf("unknown slot %q (want one of %s)", *r.Slot, names(Slots))
 		}
 	}
 	if strings.TrimSpace(r.ID) != "" {

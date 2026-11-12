@@ -140,7 +140,7 @@ func (srv *Server) adminDeleteDep(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "delete failed"})
 		return
 	}
-	details := string(dep.Kind) + " " + dep.Entry.Name + " " + dep.Entry.Version
+	details := string(dep.Entry.Kind) + " " + dep.Entry.Name + " " + dep.Entry.Version
 	logAudit(r.Context(), srv.store, claims.UserID, claims.Username, "admin_delete_dep", id, details, ipFrom(r))
 	w.WriteHeader(http.StatusNoContent)
 }

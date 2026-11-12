@@ -12,8 +12,8 @@ https://bottles-next-deps.bromb.in/api/v1
 
 | Method | Path | Response |
 | --- | --- | --- |
-| `GET` | `/catalog/components` | Component entries with required slots. |
-| `GET` | `/catalog/dependencies` | Dependency entries without slots. |
+| `GET` | `/catalog/components` | Runner, WineBridge, UMU, and component entries. |
+| `GET` | `/catalog/dependencies` | Dependency entries. |
 | `POST` | `/resolve` | Ordered component and dependency graph. |
 | `POST` | `/download-batch` | Flattened, deduplicated artifacts for a resolved graph. |
 | `GET` | `/deps/{id}/files` | Indexed files produced by one entry. |
@@ -34,6 +34,7 @@ Both catalogs use this envelope:
       "id": "7c478786-c11f-4f31-b18c-87063ec72f3d",
       "name": "example-package",
       "version": "1.0.0",
+      "kind": "dependency",
       "artifacts": [
         {
           "url": "https://downloads.example.com/example-package.tar.xz",
@@ -64,9 +65,15 @@ Clients must check `schema_version` before parsing entries. Version `1` is the o
 | `id` | UUID string | Server-assigned identity for one published release. |
 | `name` | string | Package name. |
 | `version` | string | Opaque version value. |
-| `slot` | string | Component role. Present only in the component catalog. |
+| `kind` | string | Addon role: `runner`, `winebridge`, `umu`, `component`, or `dependency`. |
+| `slot` | string | Prefix slot: `dxvk`, `vkd3d`, `nvapi`, or `latency-flex`. Present only on components. |
+| `flavor` | string | Launch flavor: `wine` or `proton`. Present only on runners. |
 | `artifacts` | array | Download candidates and their verification data. |
 | `requirements` | array | Optional references to other catalog entries. |
+| `settings` | array | Optional settings the release declares. Omitted when empty. |
+| `effects` | array | Optional effects the release applies when Wine starts, driven by its settings. Omitted when empty. |
+
+The registry stores `steps`, `settings`, and `effects` without interpreting them. Their format is defined by Bottles Next core.
 
 The server publishes at most one entry for each `name` and `version` pair in each catalog. If multiple built records share the same pair, the most recently updated record wins. Clients must not use array order as a version preference.
 
@@ -100,7 +107,7 @@ A requirement contains exactly one of these keys:
 | --- | --- | --- |
 | `id` | Both catalogs | Match the exact entry UUID. |
 | `name` | Both catalogs | Select the most recently updated built match. |
-| `slot` | Component catalog | Select the most recently updated built component in that slot. |
+| `slot` | Components | Select the most recently updated built entry of kind `component` in that slot. |
 
 The public resolver accepts root selectors and expands their requirements recursively:
 
@@ -122,7 +129,7 @@ curl -fsS \
   https://bottles-next-deps.bromb.in/api/v1/resolve
 ```
 
-Each root selector must contain exactly one of `id`, `name`, or `slot`. A root component may use any of the three. A root dependency cannot use `slot`. The optional `version` field requires an exact opaque version match. When it is omitted, the most recently updated built match is selected.
+Each root selector must contain exactly one of `id`, `name`, or `slot`. `components` selects from the component catalog and may use any of the three. A root dependency cannot use `slot`. The optional `version` field requires an exact opaque version match. When it is omitted, the most recently updated built match is selected.
 
 The optional `platform` uses the same values as artifact platforms. When supplied, each resolved entry contains only artifacts that either match the target exactly or have no platform restriction. Resolution fails when a selected entry has no compatible artifact.
 
@@ -137,10 +144,10 @@ Example response:
   },
   "entries": [
     {
-      "kind": "dependency",
       "id": "07f294e7-bbeb-47af-b24d-860f09cff325",
       "name": "vcredist-2022",
       "version": "14.40.33810",
+      "kind": "dependency",
       "artifacts": [
         {
           "url": "https://downloads.example.com/vc_redist.x64.exe",
@@ -157,10 +164,10 @@ Example response:
       ]
     },
     {
-      "kind": "component",
       "id": "7c478786-c11f-4f31-b18c-87063ec72f3d",
       "name": "dxvk",
       "version": "2.6.1",
+      "kind": "component",
       "slot": "dxvk",
       "artifacts": [
         {

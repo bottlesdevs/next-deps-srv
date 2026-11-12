@@ -17,7 +17,7 @@ func TestAdminDeleteDep_PreservesIndexedFiles(t *testing.T) {
 	entry := testEntry("obsolete").CatalogEntry
 	entry.ID = uuid.NewString()
 	dep, err := s.CreateDep(ctx, models.Dependency{
-		ID: entry.ID, Name: entry.Name, Kind: models.KindDependency,
+		ID: entry.ID, Name: entry.Name,
 		Status: "built", SubmittedBy: "user-1", Entry: entry,
 	})
 	if err != nil {
@@ -56,7 +56,7 @@ func TestAdminDeleteDep_RequiresAdmin(t *testing.T) {
 	entry := testEntry("protected").CatalogEntry
 	entry.ID = uuid.NewString()
 	dep, err := s.CreateDep(context.Background(), models.Dependency{
-		ID: entry.ID, Name: entry.Name, Kind: models.KindDependency,
+		ID: entry.ID, Name: entry.Name,
 		Status: "built", SubmittedBy: "user-1", Entry: entry,
 	})
 	if err != nil {

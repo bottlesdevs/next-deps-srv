@@ -44,8 +44,8 @@ func newDep(t *testing.T, s *store.Store, name string) models.Dependency {
 	t.Helper()
 	id := uuid.NewString()
 	d, err := s.CreateDep(context.Background(), models.Dependency{
-		ID: id, Name: name, Kind: models.KindDependency, Status: "approved",
-		Entry: models.CatalogEntry{ID: id, Name: name, Version: "1.0"},
+		ID: id, Name: name, Status: "approved",
+		Entry: models.CatalogEntry{ID: id, Name: name, Version: "1.0", Kind: models.KindDependency},
 	})
 	if err != nil {
 		t.Fatal(err)

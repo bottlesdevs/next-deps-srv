@@ -25,9 +25,9 @@ export const useDepsStore = defineStore('deps', () => {
     return data.items || []
   }
 
-  // entry is a catalog entry (name, version, artifacts, requirements and, for
-  // components, a slot) plus its kind and the category/description/license
-  // metadata. The server assigns the entry id.
+  // entry is a catalog entry (kind, name, version, artifacts, requirements,
+  // settings, effects, a slot for components and a flavor for runners) plus
+  // the category/description/license metadata. The server assigns the entry id.
   async function submitDep(entry) {
     const { data } = await api.post('/deps', entry)
     return data

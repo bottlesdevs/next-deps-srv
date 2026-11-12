@@ -12,11 +12,11 @@ GET /api/v1/catalog/dependencies
 
 Publish an entry as a dependency when all of these statements are true:
 
-- it does not replace a bottle component role;
+- it is not a runner, runtime tool, or component;
 - more than one package of the same general type may be installed;
 - consumers identify it by name or UUID rather than a slot.
 
-Use a [component](components.md) when the entry must occupy one of the supported bottle slots.
+Use the [component catalog](components.md) for runners, runtime tools, and entries that must occupy one of the supported prefix slots.
 
 ## Complete dependency submission
 
@@ -63,6 +63,7 @@ After approval and a successful build, the public dependency catalog contains an
   "id": "07f294e7-bbeb-47af-b24d-860f09cff325",
   "name": "vcredist-2022",
   "version": "14.40.33810",
+  "kind": "dependency",
   "artifacts": [
     {
       "url": "https://downloads.example.com/vc_redist.x64.exe",
@@ -81,7 +82,7 @@ After approval and a successful build, the public dependency catalog contains an
 }
 ```
 
-Dependency entries never contain `slot`.
+Dependency entries never contain `slot` or `flavor`.
 
 ## Dependencies with requirements
 
@@ -114,7 +115,7 @@ A dependency may also require a component slot:
 
 ```json
 {
-  "slot": "runner"
+  "slot": "dxvk"
 }
 ```
 
@@ -172,7 +173,7 @@ Clients may include an unscoped artifact for any target. A partial platform obje
 Dependency submissions are rejected when:
 
 - `kind` is not `dependency`;
-- a `slot` field is present;
+- a `slot` or `flavor` field is present;
 - `name` or `version` is empty;
 - no artifacts are present;
 - an artifact has an invalid checksum or partial platform;

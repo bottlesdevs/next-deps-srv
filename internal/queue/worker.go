@@ -48,7 +48,7 @@ func runJob(ctx context.Context, job models.BuildJob, dep models.Dependency, s *
 	}
 	defer os.RemoveAll(tmp)
 
-	log("🧩 %s %s (%s) — %d artifact(s)", dep.Entry.Name, dep.Entry.Version, dep.Kind, len(dep.Entry.Artifacts))
+	log("🧩 %s %s (%s) — %d artifact(s)", dep.Entry.Name, dep.Entry.Version, dep.Entry.Kind, len(dep.Entry.Artifacts))
 
 	total := 0
 	for n, art := range dep.Entry.Artifacts {
