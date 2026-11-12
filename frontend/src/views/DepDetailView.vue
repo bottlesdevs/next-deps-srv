@@ -26,8 +26,9 @@
         <div class="dep-meta-row">
           <span class="dep-meta-chip" v-if="dep.license"><i class="pi pi-file"/>{{ dep.license }}</span>
           <span class="dep-meta-chip" v-if="dep.entry?.version"><i class="pi pi-tag"/>v{{ dep.entry.version }}</span>
-          <span class="dep-meta-chip" v-if="dep.kind"><i class="pi pi-box"/>{{ dep.kind }}</span>
+          <span class="dep-meta-chip" v-if="dep.entry?.kind"><i class="pi pi-box"/>{{ dep.entry.kind }}</span>
           <span class="dep-meta-chip" v-if="dep.entry?.slot"><i class="pi pi-sitemap"/>{{ dep.entry.slot }}</span>
+          <span class="dep-meta-chip" v-if="dep.entry?.flavor"><i class="pi pi-cog"/>{{ dep.entry.flavor }}</span>
           <span class="dep-meta-chip" v-for="p in platforms" :key="p"><i class="pi pi-desktop"/>{{ p }}</span>
         </div>
       </div>

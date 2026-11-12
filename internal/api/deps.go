@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/bottlesdevs/next-deps-srv/internal/middleware"
@@ -23,38 +22,29 @@ func (srv *Server) listDeps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) componentCatalog(w http.ResponseWriter, r *http.Request) {
-	srv.serveCatalog(w, r, models.KindComponent)
+	srv.serveCatalog(w, r, false)
 }
 
 func (srv *Server) dependencyCatalog(w http.ResponseWriter, r *http.Request) {
-	srv.serveCatalog(w, r, models.KindDependency)
+	srv.serveCatalog(w, r, true)
 }
 
 // serveCatalog builds one published catalog document: schema_version plus the
-// entries of every built dependency of the requested kind. Components and
-// dependencies are served from separate endpoints because only component
-// entries carry a slot.
-func (srv *Server) serveCatalog(w http.ResponseWriter, r *http.Request, kind models.Kind) {
+// canonical entries of every built release in the requested catalog. The
+// dependency catalog holds dependencies; the component catalog holds every
+// other kind.
+func (srv *Server) serveCatalog(w http.ResponseWriter, r *http.Request, dependencies bool) {
 	deps, err := srv.store.ListApprovedDeps(r.Context())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "store error"})
 		return
 	}
-	sort.Slice(deps, func(i, j int) bool { return deps[i].UpdatedAt.After(deps[j].UpdatedAt) })
 
 	doc := models.Catalog{SchemaVersion: models.SchemaVersion, Entries: []models.CatalogEntry{}}
-	seen := make(map[string]struct{}, len(deps))
-	for _, d := range deps {
-		if d.Kind != kind {
-			continue
+	for _, d := range newCatalogResolver(deps).deps {
+		if isDependency(d) == dependencies {
+			doc.Entries = append(doc.Entries, d.Entry.NormalizeForCatalog())
 		}
-		// One release per name+version; the newest build wins.
-		key := d.Entry.Name + "\x00" + d.Entry.Version
-		if _, dup := seen[key]; dup {
-			continue
-		}
-		seen[key] = struct{}{}
-		doc.Entries = append(doc.Entries, d.Entry.NormalizeForCatalog())
 	}
 	writeJSON(w, http.StatusOK, doc)
 }
@@ -69,16 +59,15 @@ func (srv *Server) getDep(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dep)
 }
 
-// submitDepBody is a catalog entry plus the kind that selects its catalog and
-// the descriptive metadata the site shows but the document does not carry.
+// submitDepBody is a catalog entry plus the descriptive metadata the site
+// shows but the document does not carry.
 // The entry id is assigned by the server, so any client-supplied id is
 // ignored.
 type submitDepBody struct {
 	models.CatalogEntry
-	Kind        models.Kind `json:"kind"`
-	Category    string      `json:"category"`
-	Description string      `json:"description"`
-	License     string      `json:"license"`
+	Category    string `json:"category"`
+	Description string `json:"description"`
+	License     string `json:"license"`
 }
 
 func (srv *Server) submitDep(w http.ResponseWriter, r *http.Request) {
@@ -95,14 +84,13 @@ func (srv *Server) submitDep(w http.ResponseWriter, r *http.Request) {
 	entry := body.CatalogEntry
 	entry.ID = id
 
-	if err := entry.Validate(body.Kind); err != nil {
+	if err := entry.Validate(); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 	dep, err := srv.store.CreateDep(r.Context(), models.Dependency{
 		ID:          id,
 		Name:        entry.Name,
-		Kind:        body.Kind,
 		Category:    body.Category,
 		Description: body.Description,
 		License:     body.License,

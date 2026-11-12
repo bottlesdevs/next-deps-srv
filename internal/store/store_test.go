@@ -105,11 +105,11 @@ func TestDepCRUD(t *testing.T) {
 		Name:        "openssl",
 		Status:      "pending_review",
 		SubmittedBy: "user-1",
-		Kind:        models.KindDependency,
 		Entry: models.CatalogEntry{
 			ID:      uuid.NewString(),
 			Name:    "openssl",
 			Version: "3.0.0",
+			Kind:    models.KindDependency,
 			Artifacts: []models.CatalogArtifact{{
 				URL:      "http://example.com/openssl.tar.gz",
 				FileName: "openssl.tar.gz",

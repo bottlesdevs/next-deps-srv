@@ -59,7 +59,7 @@ Access tokens expire after 24 hours.
 
 ## Submission endpoint
 
-Submit either kind with:
+Submit any kind with:
 
 ```text
 POST /api/v1/deps
@@ -71,12 +71,15 @@ Common top-level fields:
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `kind` | string | Yes | `component` or `dependency`. |
+| `kind` | string | Yes | `runner`, `winebridge`, `umu`, `component`, or `dependency`. |
 | `name` | string | Yes | Human-readable package name. |
 | `version` | string | Yes | Opaque version string. The server does not enforce SemVer. |
-| `slot` | string | Components only | Required for components and forbidden for dependencies. |
+| `slot` | string | Components only | `dxvk`, `vkd3d`, `nvapi`, or `latency-flex`. Required for components and forbidden for other kinds. |
+| `flavor` | string | Runners only | `wine` or `proton`. Required for runners and forbidden for other kinds. |
 | `artifacts` | array | Yes | Must contain at least one artifact. |
 | `requirements` | array | No | References other entries by name, slot, or UUID. |
+| `settings` | array | No | Settings the release declares. Stored and published without interpretation. |
+| `effects` | array | No | Effects the release applies when Wine starts. Stored and published without interpretation. |
 | `license` | string | No | Site metadata, not part of the public catalog entry. |
 | `category` | string | No | Site metadata, not part of the public catalog entry. |
 | `description` | string | No | Site metadata, not part of the public catalog entry. |
@@ -123,14 +126,14 @@ Each requirement must contain exactly one selector:
 ```
 
 ```json
-{ "slot": "runner" }
+{ "slot": "dxvk" }
 ```
 
 ```json
 { "id": "7c478786-c11f-4f31-b18c-87063ec72f3d" }
 ```
 
-Name and ID selectors may resolve to either catalog. Slot selectors resolve only to components. The server validates the selector shape but does not check that the referenced entry already exists.
+Name and ID selectors may resolve to an entry of any kind. Slot selectors resolve only to entries of kind `component`. The server validates the selector shape but does not check that the referenced entry already exists.
 
 ## Review and build lifecycle
 

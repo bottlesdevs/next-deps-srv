@@ -16,23 +16,22 @@ import (
 
 const testDigest = "b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388"
 
-// submitBody mirrors the submit payload: a catalog entry plus its kind and
-// metadata. The server assigns the entry id, so it is not sent.
+// submitBody mirrors the submit payload: a catalog entry plus its metadata.
+// The server assigns the entry id, so it is not sent.
 type submitBody struct {
 	models.CatalogEntry
-	Kind        models.Kind `json:"kind"`
-	Category    string      `json:"category"`
-	Description string      `json:"description"`
-	License     string      `json:"license"`
+	Category    string `json:"category"`
+	Description string `json:"description"`
+	License     string `json:"license"`
 }
 
 // testEntry builds a minimal dependency submission.
 func testEntry(name string) submitBody {
 	return submitBody{
-		Kind: models.KindDependency,
 		CatalogEntry: models.CatalogEntry{
 			Name:    name,
 			Version: "1.0.0",
+			Kind:    models.KindDependency,
 			Artifacts: []models.CatalogArtifact{{
 				URL:      "https://example.com/" + name + ".zip",
 				FileName: name + ".zip",
@@ -113,7 +112,6 @@ func TestGetDep_Exists(t *testing.T) {
 		Name:        "testdep",
 		Status:      "built",
 		SubmittedBy: "user-1",
-		Kind:        models.KindDependency,
 		Entry:       testEntry("testdep").CatalogEntry,
 	})
 
@@ -160,20 +158,24 @@ func TestCatalog_SeparatesComponentsFromDependencies(t *testing.T) {
 	ts, s := setup(t)
 	ctx := context.Background()
 
-	slot := models.SlotRunner
-	comp := testComponent("wine", slot).CatalogEntry
-	comp.ID = uuid.NewString()
-	if _, err := s.CreateDep(ctx, models.Dependency{
-		ID: comp.ID, Name: "wine", Kind: models.KindComponent,
-		Status: "built", SubmittedBy: "user-1", Entry: comp,
-	}); err != nil {
-		t.Fatal(err)
+	runner := testEntry("wine").CatalogEntry
+	runner.Kind = models.KindRunner
+	flavor := models.FlavorWine
+	runner.Flavor = &flavor
+	for _, entry := range []models.CatalogEntry{testComponent("dxvk", models.SlotDXVK).CatalogEntry, runner} {
+		entry.ID = uuid.NewString()
+		if _, err := s.CreateDep(ctx, models.Dependency{
+			ID: entry.ID, Name: entry.Name,
+			Status: "built", SubmittedBy: "user-1", Entry: entry,
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	depEntry := testEntry("zlib").CatalogEntry
 	depEntry.ID = uuid.NewString()
 	if _, err := s.CreateDep(ctx, models.Dependency{
-		ID: depEntry.ID, Name: "zlib", Kind: models.KindDependency,
+		ID: depEntry.ID, Name: "zlib",
 		Status: "built", SubmittedBy: "user-1", Entry: depEntry,
 	}); err != nil {
 		t.Fatal(err)
@@ -183,13 +185,13 @@ func TestCatalog_SeparatesComponentsFromDependencies(t *testing.T) {
 	pending := testEntry("secret").CatalogEntry
 	pending.ID = uuid.NewString()
 	if _, err := s.CreateDep(ctx, models.Dependency{
-		ID: pending.ID, Name: "secret", Kind: models.KindDependency,
+		ID: pending.ID, Name: "secret",
 		Status: "pending_review", SubmittedBy: "user-1", Entry: pending,
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	fetch := func(path string, kind models.Kind) models.Catalog {
+	fetch := func(path string) models.Catalog {
 		t.Helper()
 		resp, err := http.Get(ts.URL + path)
 		if err != nil {
@@ -207,22 +209,29 @@ func TestCatalog_SeparatesComponentsFromDependencies(t *testing.T) {
 			t.Errorf("%s: expected schema_version %d, got %d", path, models.SchemaVersion, doc.SchemaVersion)
 		}
 		for _, e := range doc.Entries {
-			if err := e.Validate(kind); err != nil {
+			if err := e.Validate(); err != nil {
 				t.Errorf("%s: published entry is not schema-valid: %v", path, err)
 			}
 		}
 		return doc
 	}
 
-	comps := fetch("/api/v1/catalog/components", models.KindComponent)
-	if len(comps.Entries) != 1 || comps.Entries[0].Name != "wine" {
-		t.Fatalf("expected only the component, got %+v", comps.Entries)
+	comps := fetch("/api/v1/catalog/components")
+	kinds := map[models.Kind]models.CatalogEntry{}
+	for _, e := range comps.Entries {
+		kinds[e.Kind] = e
 	}
-	if comps.Entries[0].Slot == nil || *comps.Entries[0].Slot != models.SlotRunner {
+	if len(comps.Entries) != 2 || len(kinds) != 2 {
+		t.Fatalf("expected the component and the runner, got %+v", comps.Entries)
+	}
+	if e := kinds[models.KindComponent]; e.Slot == nil || *e.Slot != models.SlotDXVK {
 		t.Error("component entry lost its slot")
 	}
+	if e := kinds[models.KindRunner]; e.Flavor == nil || *e.Flavor != models.FlavorWine {
+		t.Error("runner entry lost its flavor")
+	}
 
-	deps := fetch("/api/v1/catalog/dependencies", models.KindDependency)
+	deps := fetch("/api/v1/catalog/dependencies")
 	if len(deps.Entries) != 1 || deps.Entries[0].Name != "zlib" {
 		t.Fatalf("expected only the built dependency, got %+v", deps.Entries)
 	}
@@ -267,7 +276,7 @@ func TestDepFiles_ListsIndexedFiles(t *testing.T) {
 	entry := testEntry("libfoo").CatalogEntry
 	entry.ID = uuid.NewString()
 	dep, err := s.CreateDep(ctx, models.Dependency{
-		ID: entry.ID, Name: "libfoo", Kind: models.KindDependency,
+		ID: entry.ID, Name: "libfoo",
 		Status: "built", SubmittedBy: "user-1", Entry: entry,
 	})
 	if err != nil {

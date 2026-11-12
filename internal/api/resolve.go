@@ -24,15 +24,10 @@ type resolveRequest struct {
 	Platform     *models.Target    `json:"platform,omitempty"`
 }
 
-type resolvedEntry struct {
-	Kind models.Kind `json:"kind"`
-	models.CatalogEntry
-}
-
 type resolveResponse struct {
-	SchemaVersion int             `json:"schema_version"`
-	Platform      *models.Target  `json:"platform,omitempty"`
-	Entries       []resolvedEntry `json:"entries"`
+	SchemaVersion int                   `json:"schema_version"`
+	Platform      *models.Target        `json:"platform,omitempty"`
+	Entries       []models.CatalogEntry `json:"entries"`
 }
 
 type downloadSource struct {
@@ -145,13 +140,13 @@ func readResolveRequest(w http.ResponseWriter, r *http.Request) (resolveRequest,
 	}
 	for i := range req.Components {
 		req.Components[i].normalize()
-		if err := req.Components[i].validate(models.KindComponent); err != nil {
+		if err := req.Components[i].validate(false); err != nil {
 			return req, fmt.Errorf("component: %w", err)
 		}
 	}
 	for i := range req.Dependencies {
 		req.Dependencies[i].normalize()
-		if err := req.Dependencies[i].validate(models.KindDependency); err != nil {
+		if err := req.Dependencies[i].validate(true); err != nil {
 			return req, fmt.Errorf("dependency: %w", err)
 		}
 	}
@@ -164,8 +159,8 @@ func (s *resolveSelector) normalize() {
 	s.Version = strings.TrimSpace(s.Version)
 }
 
-func (s resolveSelector) validate(kind models.Kind) error {
-	if s.Slot != nil && kind == models.KindDependency {
+func (s resolveSelector) validate(dependency bool) error {
+	if s.Slot != nil && dependency {
 		return fmt.Errorf("slot is only valid for components")
 	}
 	requirement := models.Requirement{ID: s.ID, Name: s.Name, Slot: s.Slot}
@@ -184,14 +179,14 @@ func (srv *Server) resolveCatalog(r *http.Request, req resolveRequest) (resolveR
 
 	roots := make([]models.Dependency, 0, len(req.Components)+len(req.Dependencies))
 	for _, selector := range req.Components {
-		dep, ok := resolver.selectEntry(models.KindComponent, selector)
+		dep, ok := resolver.selectEntry(false, selector)
 		if !ok {
 			return resolveResponse{}, fmt.Errorf("component not found: %s", selector.label())
 		}
 		roots = append(roots, dep)
 	}
 	for _, selector := range req.Dependencies {
-		dep, ok := resolver.selectEntry(models.KindDependency, selector)
+		dep, ok := resolver.selectEntry(true, selector)
 		if !ok {
 			return resolveResponse{}, fmt.Errorf("dependency not found: %s", selector.label())
 		}
@@ -201,7 +196,7 @@ func (srv *Server) resolveCatalog(r *http.Request, req resolveRequest) (resolveR
 	out := resolveResponse{
 		SchemaVersion: models.SchemaVersion,
 		Platform:      req.Platform,
-		Entries:       []resolvedEntry{},
+		Entries:       []models.CatalogEntry{},
 	}
 	state := make(map[string]uint8)
 	var visit func(models.Dependency) error
@@ -227,7 +222,7 @@ func (srv *Server) resolveCatalog(r *http.Request, req resolveRequest) (resolveR
 		if err != nil {
 			return err
 		}
-		out.Entries = append(out.Entries, resolvedEntry{Kind: dep.Kind, CatalogEntry: entry})
+		out.Entries = append(out.Entries, entry)
 		state[dep.ID] = 2
 		return nil
 	}
@@ -247,9 +242,14 @@ func newCatalogResolver(deps []models.Dependency) catalogResolver {
 		return deps[i].UpdatedAt.After(deps[j].UpdatedAt)
 	})
 	canonical := make([]models.Dependency, 0, len(deps))
-	seen := make(map[string]struct{}, len(deps))
+	type release struct {
+		dependency    bool
+		name, version string
+	}
+	seen := make(map[release]struct{}, len(deps))
 	for _, dep := range deps {
-		key := string(dep.Kind) + "\x00" + dep.Entry.Name + "\x00" + dep.Entry.Version
+		// One release per catalog, name and version; the newest build wins.
+		key := release{isDependency(dep), dep.Entry.Name, dep.Entry.Version}
 		if _, ok := seen[key]; ok {
 			continue
 		}
@@ -259,9 +259,9 @@ func newCatalogResolver(deps []models.Dependency) catalogResolver {
 	return catalogResolver{deps: canonical}
 }
 
-func (r catalogResolver) selectEntry(kind models.Kind, selector resolveSelector) (models.Dependency, bool) {
+func (r catalogResolver) selectEntry(dependency bool, selector resolveSelector) (models.Dependency, bool) {
 	for _, dep := range r.deps {
-		if dep.Kind != kind || selector.Version != "" && dep.Entry.Version != selector.Version {
+		if isDependency(dep) != dependency || selector.Version != "" && dep.Entry.Version != selector.Version {
 			continue
 		}
 		switch {
@@ -283,11 +283,17 @@ func (r catalogResolver) selectRequirement(requirement models.Requirement) (mode
 			return dep, true
 		case requirement.Name != "" && dep.Entry.Name == requirement.Name:
 			return dep, true
-		case requirement.Slot != nil && dep.Kind == models.KindComponent && dep.Entry.Slot != nil && *dep.Entry.Slot == *requirement.Slot:
+		case requirement.Slot != nil && dep.Entry.Kind == models.KindComponent && dep.Entry.Slot != nil && *dep.Entry.Slot == *requirement.Slot:
 			return dep, true
 		}
 	}
 	return models.Dependency{}, false
+}
+
+// isDependency reports whether dep is published in the dependency catalog
+// rather than the component catalog.
+func isDependency(dep models.Dependency) bool {
+	return dep.Entry.Kind == models.KindDependency
 }
 
 func entryForPlatform(entry models.CatalogEntry, target *models.Target) (models.CatalogEntry, error) {

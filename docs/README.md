@@ -12,8 +12,8 @@ https://bottles-next-deps.bromb.in/api/v1
 
 - [Publishing entries](publishing.md): accounts, submission, review, build, and publication.
 - [Catalog API](catalog-api.md): public endpoints, shared schema, client resolution, and downloads.
-- [Components](components.md): bottle slots, component requirements, and complete payloads.
-- [Dependencies](dependencies.md): non-slot packages, dependency requirements, and complete payloads.
+- [Components](components.md): runners, runtime tools, component slots, requirements, and complete payloads.
+- [Dependencies](dependencies.md): supporting packages, dependency requirements, and complete payloads.
 - [Deployment](deployment.md): release artifacts, systemd installation, updates, and rollback.
 
 ## Core model
@@ -22,7 +22,7 @@ The registry publishes two catalog documents:
 
 | Catalog | Endpoint | Purpose |
 | --- | --- | --- |
-| Components | `GET /catalog/components` | Add-ons that occupy a named slot in a bottle. |
+| Components | `GET /catalog/components` | Runners, runtime tools, and components that occupy a slot in a prefix. |
 | Dependencies | `GET /catalog/dependencies` | Supporting packages that do not occupy a slot. |
 
 Both endpoints are public and return the same document envelope:
@@ -42,17 +42,19 @@ submission -> pending_review -> approved -> building -> built -> catalog
 
 A rejected entry is not published. A failed build returns the entry to `approved` and keeps it out of the public catalog.
 
-## Component and dependency differences
+## Entry kinds
 
-| Rule | Component | Dependency |
-| --- | --- | --- |
-| `kind` on submission | `component` | `dependency` |
-| `slot` | Required | Forbidden |
-| Catalog | `/catalog/components` | `/catalog/dependencies` |
-| May satisfy a slot requirement | Yes | No |
-| May satisfy a name or ID requirement | Yes | Yes |
+Every entry carries a `kind`, the addon role it plays in Bottles Next:
 
-Artifacts, checksums, platforms, versions, and requirements use the same schema in both catalogs.
+| `kind` | Catalog | `slot` | `flavor` | May satisfy a slot requirement |
+| --- | --- | --- | --- | --- |
+| `runner` | `/catalog/components` | Forbidden | Required | No |
+| `winebridge` | `/catalog/components` | Forbidden | Forbidden | No |
+| `umu` | `/catalog/components` | Forbidden | Forbidden | No |
+| `component` | `/catalog/components` | Required | Forbidden | Yes |
+| `dependency` | `/catalog/dependencies` | Forbidden | Forbidden | No |
+
+Any kind may satisfy a name or ID requirement. Artifacts, checksums, platforms, versions, requirements, settings, and effects use the same schema in both catalogs.
 
 ## Quick check
 
@@ -71,6 +73,6 @@ The server exposes a resolver and a flattened download batch. A consuming applic
 2. Use the dependency-first entry graph returned by the server.
 3. Submit the same request to `POST /download-batch` when it needs a deduplicated artifact list.
 4. Download artifact URLs and verify their checksums.
-5. Interpret only the `steps` values that it supports.
+5. Interpret the `steps`, `settings`, and `effects` values that it supports.
 
 Clients that need a different version policy can still read both catalog documents and resolve entries locally. See [Catalog API](catalog-api.md) for the complete contract and current limits.

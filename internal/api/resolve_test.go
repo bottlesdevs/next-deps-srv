@@ -16,9 +16,9 @@ func putBuiltEntry(t *testing.T, s *store.Store, kind models.Kind, name, version
 	t.Helper()
 	id := uuid.NewString()
 	dep := models.Dependency{
-		ID: id, Name: name, Kind: kind, Status: "built", SubmittedBy: "user-1",
+		ID: id, Name: name, Status: "built", SubmittedBy: "user-1",
 		Entry: models.CatalogEntry{
-			ID: id, Name: name, Version: version, Slot: slot,
+			ID: id, Name: name, Version: version, Kind: kind, Slot: slot,
 			Requirements: requirements, Artifacts: artifacts,
 		},
 		CreatedAt: updatedAt, UpdatedAt: updatedAt,
@@ -160,8 +160,8 @@ func TestResolve_RejectsMissingRequirementsAndCycles(t *testing.T) {
 		ts, s := setup(t)
 		idA, idB := uuid.NewString(), uuid.NewString()
 		for _, dep := range []models.Dependency{
-			{ID: idA, Name: "a", Kind: models.KindDependency, Status: "built", Entry: models.CatalogEntry{ID: idA, Name: "a", Version: "1", Requirements: []models.Requirement{{ID: idB}}, Artifacts: []models.CatalogArtifact{resolveArtifact("a.zip", nil)}}},
-			{ID: idB, Name: "b", Kind: models.KindDependency, Status: "built", Entry: models.CatalogEntry{ID: idB, Name: "b", Version: "1", Requirements: []models.Requirement{{ID: idA}}, Artifacts: []models.CatalogArtifact{resolveArtifact("b.zip", nil)}}},
+			{ID: idA, Name: "a", Status: "built", Entry: models.CatalogEntry{ID: idA, Name: "a", Version: "1", Kind: models.KindDependency, Requirements: []models.Requirement{{ID: idB}}, Artifacts: []models.CatalogArtifact{resolveArtifact("a.zip", nil)}}},
+			{ID: idB, Name: "b", Status: "built", Entry: models.CatalogEntry{ID: idB, Name: "b", Version: "1", Kind: models.KindDependency, Requirements: []models.Requirement{{ID: idA}}, Artifacts: []models.CatalogArtifact{resolveArtifact("b.zip", nil)}}},
 		} {
 			if err := s.Deps.Put(context.Background(), dep.ID, dep, 0); err != nil {
 				t.Fatal(err)

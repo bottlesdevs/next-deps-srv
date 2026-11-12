@@ -20,6 +20,7 @@ func validEntry() models.CatalogEntry {
 		ID:      uuid.NewString(),
 		Name:    "Wine Stable",
 		Version: "11.0",
+		Kind:    models.KindDependency,
 		Artifacts: []models.CatalogArtifact{{
 			URL:      "https://example.com/wine-osx64.tar.xz",
 			FileName: "wine-osx64.tar.xz",
@@ -31,33 +32,84 @@ func validEntry() models.CatalogEntry {
 
 func componentEntry() models.CatalogEntry {
 	e := validEntry()
-	slot := models.SlotRunner
+	e.Kind = models.KindComponent
+	slot := models.SlotDXVK
 	e.Slot = &slot
 	return e
 }
 
-func TestValidate_DependencyAndComponent(t *testing.T) {
-	if err := validEntry().Validate(models.KindDependency); err != nil {
-		t.Errorf("valid dependency rejected: %v", err)
+func runnerEntry() models.CatalogEntry {
+	e := validEntry()
+	e.Kind = models.KindRunner
+	flavor := models.FlavorWine
+	e.Flavor = &flavor
+	return e
+}
+
+func TestValidate_EveryKind(t *testing.T) {
+	entries := map[string]models.CatalogEntry{
+		"dependency": validEntry(),
+		"component":  componentEntry(),
+		"runner":     runnerEntry(),
 	}
-	if err := componentEntry().Validate(models.KindComponent); err != nil {
-		t.Errorf("valid component rejected: %v", err)
+	for _, kind := range []models.Kind{models.KindWinebridge, models.KindUmu} {
+		e := validEntry()
+		e.Kind = kind
+		entries[string(kind)] = e
+	}
+	for name, e := range entries {
+		if err := e.Validate(); err != nil {
+			t.Errorf("valid %s rejected: %v", name, err)
+		}
 	}
 }
 
-// Slot is the only structural difference between the two catalogs.
+func TestValidate_RejectsUnknownKind(t *testing.T) {
+	for _, kind := range []models.Kind{"", "dxvk", "plugin"} {
+		e := validEntry()
+		e.Kind = kind
+		if err := e.Validate(); err == nil {
+			t.Errorf("expected kind %q to be rejected", kind)
+		}
+	}
+}
+
 func TestValidate_SlotBelongsToComponentsOnly(t *testing.T) {
-	if err := componentEntry().Validate(models.KindDependency); err == nil {
+	e := componentEntry()
+	e.Kind = models.KindDependency
+	if err := e.Validate(); err == nil {
 		t.Error("expected a dependency carrying a slot to be rejected")
 	}
-	if err := validEntry().Validate(models.KindComponent); err == nil {
+	e = validEntry()
+	e.Kind = models.KindComponent
+	if err := e.Validate(); err == nil {
 		t.Error("expected a component without a slot to be rejected")
 	}
-	e := componentEntry()
-	bad := models.Slot("gpu")
-	e.Slot = &bad
-	if err := e.Validate(models.KindComponent); err == nil {
-		t.Error("expected an unknown slot to be rejected")
+	for _, slot := range []models.Slot{"gpu", "runner"} {
+		e = componentEntry()
+		e.Slot = &slot
+		if err := e.Validate(); err == nil {
+			t.Errorf("expected slot %q to be rejected", slot)
+		}
+	}
+}
+
+func TestValidate_FlavorBelongsToRunnersOnly(t *testing.T) {
+	e := runnerEntry()
+	e.Kind = models.KindUmu
+	if err := e.Validate(); err == nil {
+		t.Error("expected a umu entry carrying a flavor to be rejected")
+	}
+	e = validEntry()
+	e.Kind = models.KindRunner
+	if err := e.Validate(); err == nil {
+		t.Error("expected a runner without a flavor to be rejected")
+	}
+	bad := models.Flavor("crossover")
+	e = runnerEntry()
+	e.Flavor = &bad
+	if err := e.Validate(); err == nil {
+		t.Error("expected an unknown flavor to be rejected")
 	}
 }
 
@@ -94,7 +146,7 @@ func TestValidate_Rejects(t *testing.T) {
 			e.Requirements = []models.Requirement{{}}
 		},
 		"requirement with two variants": func(e *models.CatalogEntry) {
-			slot := models.SlotRunner
+			slot := models.SlotDXVK
 			e.Requirements = []models.Requirement{{Name: "wine", Slot: &slot}}
 		},
 		"requirement id not a uuid": func(e *models.CatalogEntry) {
@@ -105,7 +157,7 @@ func TestValidate_Rejects(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			e := validEntry()
 			mutate(&e)
-			if err := e.Validate(models.KindDependency); err == nil {
+			if err := e.Validate(); err == nil {
 				t.Errorf("expected %s to be rejected", name)
 			}
 		})
@@ -115,13 +167,13 @@ func TestValidate_Rejects(t *testing.T) {
 func TestValidate_AcceptsSha512AndRequirements(t *testing.T) {
 	e := validEntry()
 	e.Artifacts[0].Checksum = models.Checksum{Algorithm: "sha512", Value: sha512Hex}
-	slot := models.SlotRunner
+	slot := models.SlotDXVK
 	e.Requirements = []models.Requirement{
 		{Name: "wine"},
 		{Slot: &slot},
 		{ID: uuid.NewString()},
 	}
-	if err := e.Validate(models.KindDependency); err != nil {
+	if err := e.Validate(); err != nil {
 		t.Errorf("expected entry to be valid, got %v", err)
 	}
 }
@@ -131,7 +183,7 @@ func TestValidate_AllowsSameFileDifferentPlatform(t *testing.T) {
 	second := e.Artifacts[0]
 	second.Platform = &models.Target{OS: models.OSLinux, Arch: models.ArchX86_64}
 	e.Artifacts = append(e.Artifacts, second)
-	if err := e.Validate(models.KindDependency); err != nil {
+	if err := e.Validate(); err != nil {
 		t.Errorf("expected per-platform artifacts to be allowed, got %v", err)
 	}
 }
@@ -139,7 +191,7 @@ func TestValidate_AllowsSameFileDifferentPlatform(t *testing.T) {
 func TestValidate_RejectsDuplicateArtifacts(t *testing.T) {
 	e := validEntry()
 	e.Artifacts = append(e.Artifacts, e.Artifacts[0])
-	if err := e.Validate(models.KindDependency); err == nil {
+	if err := e.Validate(); err == nil {
 		t.Error("expected duplicate artifacts to be rejected")
 	}
 }
@@ -156,12 +208,12 @@ func TestCatalogJSON_Shape(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := string(b)
-	for _, absent := range []string{`"slot"`, `"requirements"`, `"steps"`, `"size"`, `"component_root"`} {
+	for _, absent := range []string{`"slot"`, `"flavor"`, `"requirements"`, `"settings"`, `"effects"`, `"steps"`, `"size"`, `"component_root"`} {
 		if strings.Contains(got, absent) {
 			t.Errorf("expected %s to be omitted, got %s", absent, got)
 		}
 	}
-	for _, present := range []string{`"schema_version":1`, `"entries":[`, `"checksum":{`, `"platform":{`} {
+	for _, present := range []string{`"schema_version":1`, `"entries":[`, `"kind":"dependency"`, `"checksum":{`, `"platform":{`} {
 		if !strings.Contains(got, present) {
 			t.Errorf("expected %s in %s", present, got)
 		}
@@ -178,6 +230,26 @@ func TestCatalogJSON_Shape(t *testing.T) {
 	b, _ = json.Marshal(bare)
 	if !strings.Contains(string(b), `"artifacts":[]`) {
 		t.Errorf("artifacts must marshal as [] not null, got %s", b)
+	}
+}
+
+// Settings and effects are opaque and must survive a round trip untouched.
+func TestSettingsAndEffects_RoundTripUnchanged(t *testing.T) {
+	settings := `[{"key":"hud","label":"HUD","category":"graphics","control":{"type":"toggle"},"default":false}]`
+	effects := `[{"action":"set-environment","name":"DXVK_HUD","value":"1","when":{"setting":"hud","equals":true}}]`
+	raw := `{"id":"` + uuid.NewString() + `","name":"n","version":"1","kind":"dependency","artifacts":[],"settings":` + settings + `,"effects":` + effects + `}`
+	var entry models.CatalogEntry
+	if err := json.Unmarshal([]byte(raw), &entry); err != nil {
+		t.Fatal(err)
+	}
+	out, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"settings":` + settings, `"effects":` + effects} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("expected %s in %s", want, out)
+		}
 	}
 }
 

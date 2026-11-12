@@ -8,34 +8,41 @@ import (
 // SchemaVersion is the version emitted in the published catalog documents.
 const SchemaVersion = 1
 
-// Kind selects which catalog an entry is published in. Components occupy a
-// slot in a bottle; dependencies do not.
+// Kind is the addon role of an entry. Dependencies are published in the
+// dependency catalog and every other role in the component catalog.
 type Kind string
 
 const (
+	KindRunner     Kind = "runner"
+	KindWinebridge Kind = "winebridge"
+	KindUmu        Kind = "umu"
 	KindComponent  Kind = "component"
 	KindDependency Kind = "dependency"
 )
 
-var Kinds = []Kind{KindComponent, KindDependency}
+var Kinds = []Kind{KindRunner, KindWinebridge, KindUmu, KindComponent, KindDependency}
 
-// Slot is a mutually exclusive component role within a bottle.
+// Slot is the mutually exclusive prefix position a component occupies.
 type Slot string
 
 const (
-	SlotWinebridge  Slot = "winebridge"
-	SlotRunner      Slot = "runner"
-	SlotUmu         Slot = "umu"
 	SlotDXVK        Slot = "dxvk"
 	SlotVKD3D       Slot = "vkd3d"
 	SlotNVAPI       Slot = "nvapi"
 	SlotLatencyFlex Slot = "latency-flex"
 )
 
-var Slots = []Slot{
-	SlotWinebridge, SlotRunner, SlotUmu, SlotDXVK,
-	SlotVKD3D, SlotNVAPI, SlotLatencyFlex,
-}
+var Slots = []Slot{SlotDXVK, SlotVKD3D, SlotNVAPI, SlotLatencyFlex}
+
+// Flavor is how a runner is launched.
+type Flavor string
+
+const (
+	FlavorWine   Flavor = "wine"
+	FlavorProton Flavor = "proton"
+)
+
+var Flavors = []Flavor{FlavorWine, FlavorProton}
 
 type OperatingSystem string
 
@@ -63,7 +70,6 @@ var ChecksumAlgorithms = []string{"sha256", "sha512"}
 type Dependency struct {
 	ID           string       `json:"id"`
 	Name         string       `json:"name"`
-	Kind         Kind         `json:"kind"`
 	Category     string       `json:"category"`
 	Description  string       `json:"description"`
 	License      string       `json:"license,omitempty"`
@@ -78,7 +84,7 @@ type Dependency struct {
 }
 
 // Catalog is one published catalog document. The component and dependency
-// catalogs share this shape; only component entries carry a slot.
+// catalogs share this shape.
 type Catalog struct {
 	SchemaVersion int            `json:"schema_version"`
 	Entries       []CatalogEntry `json:"entries"`
@@ -89,9 +95,15 @@ type CatalogEntry struct {
 	ID           string            `json:"id"` // uuid
 	Name         string            `json:"name"`
 	Version      string            `json:"version"`
+	Kind         Kind              `json:"kind"`
+	Slot         *Slot             `json:"slot,omitempty"`   // components only
+	Flavor       *Flavor           `json:"flavor,omitempty"` // runners only
 	Artifacts    []CatalogArtifact `json:"artifacts"`
 	Requirements []Requirement     `json:"requirements,omitempty"`
-	Slot         *Slot             `json:"slot,omitempty"` // components only
+	// Settings and Effects are opaque to the server and carried through to
+	// consumers untouched.
+	Settings []json.RawMessage `json:"settings,omitempty"`
+	Effects  []json.RawMessage `json:"effects,omitempty"`
 }
 
 // CatalogArtifact is one downloadable file and the recipe associated with it.
@@ -127,9 +139,9 @@ func (t *Target) String() string {
 	return string(t.OS) + "/" + string(t.Arch)
 }
 
-// Requirement is a constraint satisfied by another addon in the bottle.
-// Exactly one field is set: name and id may be satisfied by a component or a
-// dependency, slot only by a component.
+// Requirement is a constraint satisfied by another addon in the prefix.
+// Exactly one field is set: name and id may be satisfied by an addon of any
+// kind, slot only by a component.
 type Requirement struct {
 	Name string `json:"name,omitempty"`
 	Slot *Slot  `json:"slot,omitempty"`

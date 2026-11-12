@@ -9,6 +9,10 @@
         <label>Slot</label>
         <Dropdown v-model="form.slot" :options="slots" placeholder="Select a slot" />
       </div>
+      <div class="field" v-if="form.kind === 'runner'">
+        <label>Flavor</label>
+        <Dropdown v-model="form.flavor" :options="flavors" placeholder="Select a flavor" />
+      </div>
     </div>
 
     <div class="row">
@@ -67,8 +71,8 @@
         </div>
         <div class="field">
           <label>Steps <span class="hint">optional, JSON array</span></label>
-          <Textarea v-model="a.steps" rows="2" placeholder="[]" :class="{ invalid: stepsError(a) }" />
-          <small v-if="stepsError(a)" class="err">{{ stepsError(a) }}</small>
+          <Textarea v-model="a.steps" rows="2" placeholder="[]" :class="{ invalid: jsonError(a.steps) }" />
+          <small v-if="jsonError(a.steps)" class="err">{{ jsonError(a.steps) }}</small>
         </div>
       </div>
     </div>
@@ -85,6 +89,17 @@
         <Button type="button" icon="pi pi-trash" size="small" text severity="danger"
                 @click="form.requirements.splice(i, 1)" />
       </div>
+    </div>
+
+    <div class="field">
+      <label>Settings <span class="hint">optional, JSON array</span></label>
+      <Textarea v-model="form.settings" rows="2" placeholder="[]" :class="{ invalid: jsonError(form.settings) }" />
+      <small v-if="jsonError(form.settings)" class="err">{{ jsonError(form.settings) }}</small>
+    </div>
+    <div class="field">
+      <label>Effects <span class="hint">optional, JSON array</span></label>
+      <Textarea v-model="form.effects" rows="2" placeholder="[]" :class="{ invalid: jsonError(form.effects) }" />
+      <small v-if="jsonError(form.effects)" class="err">{{ jsonError(form.effects) }}</small>
     </div>
 
     <div class="row">
@@ -123,8 +138,12 @@ const emit = defineEmits(['submitted', 'cancel'])
 const kinds = [
   { label: 'Dependency', value: 'dependency' },
   { label: 'Component', value: 'component' },
+  { label: 'Runner', value: 'runner' },
+  { label: 'WineBridge', value: 'winebridge' },
+  { label: 'UMU', value: 'umu' },
 ]
-const slots = ['winebridge', 'runner', 'umu', 'dxvk', 'vkd3d', 'nvapi', 'latency-flex']
+const slots = ['dxvk', 'vkd3d', 'nvapi', 'latency-flex']
+const flavors = ['wine', 'proton']
 const algorithms = ['sha256', 'sha512']
 const operatingSystems = ['linux', 'mac-os', 'windows']
 const architectures = ['x86', 'x86_64', 'aarch64']
@@ -144,10 +163,11 @@ function blankArtifact() {
 }
 
 const form = ref({
-  kind: 'dependency', slot: null,
+  kind: 'dependency', slot: null, flavor: null,
   name: '', version: '',
   artifacts: [blankArtifact()],
   requirements: [],
+  settings: '', effects: '',
   license: '', category: '', description: '',
 })
 const loading = ref(false)
@@ -156,10 +176,10 @@ const error = ref('')
 function addArtifact() { form.value.artifacts.push(blankArtifact()) }
 function addRequirement() { form.value.requirements.push({ type: 'name', value: '' }) }
 
-// Steps are an opaque recipe passed through verbatim, so they are entered as
-// raw JSON and only checked for being a well-formed array.
-function stepsError(a) {
-  const raw = (a.steps || '').trim()
+// Steps, settings and effects are passed through verbatim, so they are entered
+// as raw JSON and only checked for being a well-formed array.
+function jsonError(value) {
+  const raw = (value || '').trim()
   if (!raw) return ''
   try {
     return Array.isArray(JSON.parse(raw)) ? '' : 'must be a JSON array'
@@ -193,6 +213,11 @@ function payload() {
     description: f.description,
   }
   if (f.kind === 'component') body.slot = f.slot
+  if (f.kind === 'runner') body.flavor = f.flavor
+  for (const key of ['settings', 'effects']) {
+    const raw = (f[key] || '').trim()
+    if (raw) body[key] = JSON.parse(raw)
+  }
   const reqs = f.requirements
     .filter(r => r.value)
     .map(r => ({ [r.type]: r.value }))
@@ -201,9 +226,9 @@ function payload() {
 }
 
 async function submit() {
-  const bad = form.value.artifacts.find(a => stepsError(a))
-  if (bad) {
-    error.value = 'Fix the steps JSON before submitting'
+  const f = form.value
+  if (f.artifacts.some(a => jsonError(a.steps)) || jsonError(f.settings) || jsonError(f.effects)) {
+    error.value = 'Fix the JSON fields before submitting'
     return
   }
   loading.value = true

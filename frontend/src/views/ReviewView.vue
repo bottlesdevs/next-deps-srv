@@ -16,7 +16,7 @@
         </div>
         <div class="dep-info">
           <p><b>Entry ID:</b> <code>{{ dep.entry?.id }}</code></p>
-          <p><b>Kind:</b> {{ dep.kind }}<span v-if="dep.entry?.slot"> · slot: {{ dep.entry.slot }}</span></p>
+          <p><b>Kind:</b> {{ dep.entry?.kind }}<span v-if="dep.entry?.slot"> · slot: {{ dep.entry.slot }}</span><span v-if="dep.entry?.flavor"> · flavor: {{ dep.entry.flavor }}</span></p>
           <p v-if="dep.entry?.requirements?.length"><b>Requires:</b>
             <span v-for="(r, i) in dep.entry.requirements" :key="i">
               {{ r.name || r.slot || r.id }}<span v-if="i < dep.entry.requirements.length - 1">, </span>
